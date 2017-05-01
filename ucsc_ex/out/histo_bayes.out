@@ -1,0 +1,45 @@
+/Library/Frameworks/Python.framework/Versions/3.6/bin/python3 /Users/manoj/work/machine_learning/ucsc_ex/histo_bayes.py
+All Data
+
+Mean Heights:
+64.7257
+70.7681
+
+Mean Std Deviation:
+3.4782
+3.3095
+
+Histogram Result:
+{55: 1.0, 60: 0.9975, 65: 0.8078, 70: 0.2605, 75: 0.027, 80: 0.0}
+
+Sample Size:
+8900
+7800
+
+Bayes Theorem:
+{55: 0.9995, 60: 0.9885, 65: 0.8317, 70: 0.261, 75: 0.0304, 80: 0.0034}
+
+
+
+Partial Data
+
+Mean Male Heights:
+64.0714
+71.8182
+
+Mean Std Deviation:
+3.88153661977
+3.37956914463
+
+Histogram Result:
+{55: 1.0, 60: 'NaN', 65: 1.0, 70: 0.0, 75: 0.0, 80: 0.0}
+
+Sample Size:
+28
+22
+
+Bayes Theorem:
+{55: 0.9999, 60: 0.9966, 65: 0.8918, 70: 0.2852, 75: 0.0317, 80: 0.0046}
+
+Process finished with exit code 0
+

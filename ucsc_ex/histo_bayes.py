@@ -8,7 +8,7 @@ INDEX_COL_FEET = 0
 INDEX_COL_INCH = 1
 INDEX_COL_GENDER = 2
 workbook = xlrd.open_workbook('/Users/manoj/my/course/ML/Assignment_1_Data_and_Template.xlsx')
-query_height = [55, 60, 65, 70, 75, 80]
+query_height = [55, 60, 65, 68, 70, 75, 80]
 worksheet = workbook.sheet_by_index(INDEX_SHEET)
 
 
@@ -50,7 +50,7 @@ def get_female_height_prob_using_histo(male_height_histo, female_height_histo,
     for idx in range(0, len(query_height_list)):
         key = query_height_list[idx]
         bin_idx = get_bin(key)
-        if male_height_histo[bin_idx] + female_height_histo[bin_idx] != 0:
+        if (male_height_histo[bin_idx] + female_height_histo[bin_idx]) != 0:
             return_prob[key] = \
                 get_float_value(female_height_histo[bin_idx] /
                                 (male_height_histo[bin_idx] +
@@ -76,12 +76,12 @@ def get_pdf(height, std_dev, mean):
 
 
 def get_female_height_prob_using_pdf(female_count, female_std_dev, female_mean,
-                                     male_count, male_std_dec, male_mean,
+                                     male_count, male_std_dev, male_mean,
                                      q_height_list):
     height_prob_map = dict()
     for idx in range(0, len(q_height_list)):
         key = q_height_list[idx]
-        male_prob = male_count * get_pdf(key, male_std_dec,
+        male_prob = male_count * get_pdf(key, male_std_dev,
                                          male_mean)
         female_prob = female_count * get_pdf(key, female_std_dev, female_mean)
         if female_prob + male_prob != 0:
@@ -98,23 +98,29 @@ female_list = get_female_height_list(all_data)
 min_height = min(min(male_list), min(female_list))
 max_height = max(max(male_list), max(female_list))
 
+print("\nSample Size:")
+print("F: {}".format(len(female_list)))
+print("M: {}".format(len(male_list)))
+print("Min height {}, Max height {}".format(min_height, max_height))
+
+print("\nMean Heights:")
+print("F: {}".format(get_float_value(get_mean(female_list))))
+print("M: {}".format(get_float_value(get_mean(male_list))))
+
 male_height_bins = get_heights_by_bin_list(male_list)
 female_height_bins = get_heights_by_bin_list(female_list)
-print("\nMean Heights:")
-print(get_float_value(get_mean(female_list)))
-print(get_float_value(get_mean(male_list)))
+print("\nHisto:")
+print("F: {}".format(female_height_bins))
+print("M: {}".format(male_height_bins))
 
-print("\nMean Std Deviation:")
-print(get_float_value(get_std_deviation(female_list)))
-print(get_float_value(get_std_deviation(male_list)))
+print("\nStd Deviation:")
+print("F: {}".format(get_float_value(get_std_deviation(female_list))))
+print("M: {}".format(get_float_value(get_std_deviation(male_list))))
 
 print("\nHistogram Result:")
 print(get_female_height_prob_using_histo(male_height_bins, female_height_bins,
                                          query_height))
 
-print("\nSample Size:")
-print(len(female_list))
-print(len(male_list))
 
 print("\nBayes Theorem:")
 print(get_female_height_prob_using_pdf(len(female_list), get_std_deviation(
@@ -132,6 +138,16 @@ print("\n\n")
 print("Partial Data")
 male_height_bins = get_heights_by_bin_list(male_list)
 female_height_bins = get_heights_by_bin_list(female_list)
+
+print("\nSample Size:")
+print(len(female_list))
+print(len(male_list))
+print("Min height {}, Max height {}".format(min_height, max_height))
+
+print("\nHisto:")
+print("F: {}".format(female_height_bins))
+print("M: {}".format(male_height_bins))
+
 
 print("\nMean Male Heights:")
 print(get_float_value(get_mean(female_list)))
