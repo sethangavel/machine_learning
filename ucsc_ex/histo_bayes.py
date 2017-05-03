@@ -7,7 +7,8 @@ INDEX_SHEET = 0
 INDEX_COL_FEET = 0
 INDEX_COL_INCH = 1
 INDEX_COL_GENDER = 2
-workbook = xlrd.open_workbook('/Users/manoj/my/course/ML/Assignment_1_Data_and_Template.xlsx')
+workbook = xlrd.open_workbook(
+    '/Users/manoj/my/course/ML/Assignments/Assignment_1_Data_and_Template.xlsx')
 query_height = [55, 60, 65, 68, 70, 75, 80]
 worksheet = workbook.sheet_by_index(INDEX_SHEET)
 

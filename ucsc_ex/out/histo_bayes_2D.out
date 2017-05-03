@@ -1,0 +1,50 @@
+/Library/Frameworks/Python.framework/Versions/3.6/bin/python3 /Users/manoj/work/machine_learning/ucsc_ex/histo_bayes_2D.py
+
+Sample Size:
+F: 89
+M: 78
+Min height 57.0, Max height 78.0
+Min hand 16.0, Max hand 25.5
+Optimal bin count: 8
+
+Female Histogram
+[[  1.   0.   0.   0.   0.   0.   0.   0.]
+ [  0.   2.   2.   2.   0.   0.   0.   0.]
+ [  1.   5.  11.   9.   5.   0.   0.   0.]
+ [  0.   1.   6.  19.   4.   0.   0.   0.]
+ [  0.   0.   4.   8.   4.   2.   0.   0.]
+ [  0.   0.   1.   1.   1.   0.   0.   0.]
+ [  0.   0.   0.   0.   0.   0.   0.   0.]
+ [  0.   0.   0.   0.   0.   0.   0.   0.]]
+
+Male Histogram
+[[  0.   0.   0.   0.   0.   0.   0.   0.]
+ [  0.   0.   0.   0.   0.   0.   0.   0.]
+ [  0.   0.   0.   0.   0.   0.   0.   0.]
+ [  0.   0.   1.   0.   6.   1.   0.   0.]
+ [  0.   1.   0.   2.   7.   8.   3.   0.]
+ [  0.   0.   0.   5.  14.   7.   5.   0.]
+ [  0.   0.   0.   1.   3.   1.  12.   0.]
+ [  0.   0.   0.   0.   0.   0.   0.   1.]]
+
+Posterior probability of being Female given features:
+{(69, 17.5): 0.0, (66, 22): 0.40000000000000002, (70, 21.5): 0.36363636363636365, (69, 23.5): 0.0}
+
+Female Mean vector:
+[ 65.25280899  19.6011236 ]
+
+Male Mean vector:
+[ 71.28846154  22.30128205]
+
+Female covariance matrix:
+[[ 7.75780452  1.65170135]
+ [ 1.65170135  1.75670327]]
+
+Male covariance matrix:
+[[ 7.08778721  1.80157343]
+ [ 1.80157343  2.06064769]]
+
+Posterior probability of being Female given features:
+{(69, 17.5): 0.8985362558122364, (66, 22): 0.6555792232463565, (70, 21.5): 0.19885721783198407, (69, 23.5): 0.05645179652734155}
+
+Process finished with exit code 0
