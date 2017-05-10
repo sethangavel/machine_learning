@@ -5,10 +5,8 @@ import numpy as np
 from numpy.linalg import inv
 from numpy.linalg import det
 
-import pandas as pd
-from scipy import stats, integrate
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
 import seaborn as sns
 sns.set(color_codes=True)
 
@@ -66,7 +64,7 @@ def get_optimal_bin_count_rice(min_samples):
 
 
 def get_optimal_bin_count_custom(min_samples):
-    return 6
+    return 7
 
 
 def get_cube_root(n):
@@ -239,8 +237,8 @@ reconstructed_histo_f = get_reconstructed_histo_pdf(Mu_F, Cov_F,
                                                     len(female_height_handspan_list),
                                                     ((max_height - min_height) / bin_count),
                                                     ((max_handspan - min_handspan) / bin_count))
-np.savetxt('out.csv', reconstructed_histo_f, fmt='%.20f,')
-# write_CSV("reconstructed_histo_female.csv", reconstructed_histo_f)
+np.savetxt('out/out.csv', reconstructed_histo_f, fmt='%.20f,')
+write_CSV("out/reconstructed_histo_female.csv", reconstructed_histo_f)
 print(reconstructed_histo_f)
 
 print("\nReconstructed Male Histo from PDF factors:")
@@ -250,16 +248,10 @@ print(get_reconstructed_histo_pdf(Mu_M, Cov_M,
                                   ((max_height - min_height) / bin_count),
                                   ((max_handspan - min_handspan) / bin_count)))
 
-# x = np.random.normal(size=100)
-# sns.distplot(x, kde=False, rug=True)
-# sns.distplot(x, hist=False, rug=True)
-
-# plt.figure()
-# X, Y = np.meshgrid(female_height_list, female_handspan_list)
-# Z1 = mlab.bivariate_normal(X, Y, 1.0, 1.0, 0.0, 0.0)
-# Z2 = mlab.bivariate_normal(X, Y, 1.5, 0.5, 1, 1)
-# Z = 10.0 * (Z2 - Z1)
-# CS = plt.contour(X, Y, Z)
-# plt.clabel(CS, inline=1, fontsize=10)
-# plt.title('Simplest default with labels')
-# plt.show()
+# Plot
+print("\nPlot-Begin")
+counts, ybins, xbins, image = plt.hist2d(female_height_list, female_handspan_list, bin_count)
+plt.hist2d(male_height_list, male_handspan_list, bin_count)
+plt.colorbar()
+plt.show()
+print("\nPlot-End")

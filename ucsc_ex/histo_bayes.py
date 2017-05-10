@@ -2,6 +2,11 @@ import xlrd
 import math
 import numpy as np
 
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import seaborn as sns
+sns.set(color_codes=True)
+
 BIN_COUNT = 32
 INDEX_SHEET = 0
 INDEX_COL_FEET = 0
@@ -128,7 +133,24 @@ print(get_female_height_prob_using_pdf(len(female_list), get_std_deviation(
     female_list), get_mean(female_list), len(male_list), get_std_deviation(
     male_list), get_mean(male_list), query_height))
 
+# Plot
+print("\nPlot-Begin")
+fig, ax = plt.subplots()
+n, bins, patches = ax.hist(female_list, BIN_COUNT, normed=1, align='mid', alpha=0.5)
+y = mlab.normpdf(bins, get_mean(female_list), get_std_deviation(female_list))
+ax.plot(bins, y, '--')
+n, bins, patches = ax.hist(male_list, BIN_COUNT, normed=1, align='mid', alpha=0.5)
+z = mlab.normpdf(bins, get_mean(male_list), get_std_deviation(male_list))
+ax.plot(bins, z, '--')
+ax.set_xlabel('Male and Female Heights')
+ax.set_ylabel('Probability density')
+ax.set_title(r'Histogram of Female and Male Heights')
+fig.tight_layout()
+plt.show()
+print("\nPlot-End")
 
+
+## Partial Data
 partial_data = all_data[1:51]
 male_list = get_male_height_list(partial_data)
 female_list = get_female_height_list(partial_data)
@@ -170,6 +192,5 @@ print("\nBayes Theorem:")
 print(get_female_height_prob_using_pdf(len(female_list), get_std_deviation(
     female_list), get_mean(female_list), len(male_list), get_std_deviation(
     male_list), get_mean(male_list), query_height))
-
 
 
