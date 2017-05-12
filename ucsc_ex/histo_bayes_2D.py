@@ -64,7 +64,7 @@ def get_optimal_bin_count_rice(min_samples):
 
 
 def get_optimal_bin_count_custom(min_samples):
-    return 7
+    return 8
 
 
 def get_cube_root(n):
@@ -102,6 +102,7 @@ def get_prob_by_histo(query_list):
     histo_prob = {}
     for h, s in query_list:
         rc_tup = get_histo_matrix_row_col(h, s)
+        print("R:C: ", h, s, " -- ", rc_tup)
         Hm_hs = male_hs_histo[rc_tup[0]][rc_tup[1]]
         Hf_hs = female_hs_histo[rc_tup[0]][rc_tup[1]]
         if Hm_hs + Hf_hs != 0:
@@ -251,7 +252,7 @@ print(get_reconstructed_histo_pdf(Mu_M, Cov_M,
 # Plot
 print("\nPlot-Begin")
 counts, ybins, xbins, image = plt.hist2d(female_height_list, female_handspan_list, bin_count)
-plt.hist2d(male_height_list, male_handspan_list, bin_count)
+# plt.hist2d(male_height_list, male_handspan_list, bin_count)
 plt.colorbar()
 plt.show()
 print("\nPlot-End")
