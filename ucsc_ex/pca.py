@@ -8,6 +8,15 @@ from pylab import *
 from numpy import *
 import numpy.linalg as la
 
+POSITIVE_CLASS = 5
+NEGATIVE_CLASS = 6
+IMAGE_INDEX = 100
+SCATTER_PLOT_ALPHA = 0.25
+ENABLE_IMAGE_SHOW = True
+
+np.set_printoptions(precision=4)
+np.set_printoptions(suppress=True)
+
 
 def load_mnist(dataset="training", digits=range(10), path='data/3/'):
     """
@@ -44,21 +53,27 @@ def load_mnist(dataset="training", digits=range(10), path='data/3/'):
     return images, labels
 
 
-def draw_image(byte_array):
+def draw_image(byte_array, img_title):
     print("Image!")
+    if not ENABLE_IMAGE_SHOW:
+        return
     plt.imshow(byte_array.reshape(28, 28), interpolation='None', cmap=cm.gray)
+    plt.title(img_title)
     show()
 
 
-def draw_scatter_plot(cloud_a, cloud_b):
+def draw_scatter_plot(cloud_a, cloud_b, all_labels):
+    print("Scatter Plot!")
+    if not ENABLE_IMAGE_SHOW:
+        return
     fig = plt.figure()
-    cols = np.zeros((alen(labels), 4))
-    for idx, ll in enumerate(labels):
-        if ll == 5:
-            cols[idx] = [1, 0, 0, 0.25]
-        if ll == 6:
-            cols[idx] = [0, 1, 0, 0.25]
-    random_order = np.arange(np.alen(labels))
+    cols = np.zeros((alen(all_labels), 4))
+    for idx, ll in enumerate(all_labels):
+        if ll == POSITIVE_CLASS:
+            cols[idx] = [1, 0, 0, SCATTER_PLOT_ALPHA]
+        if ll == NEGATIVE_CLASS:
+            cols[idx] = [0, 1, 0, SCATTER_PLOT_ALPHA]
+    random_order = np.arange(np.alen(all_labels))
     ax = fig.add_subplot(111, facecolor='black')
     ax.scatter(cloud_b, cloud_a, s=5, linewidths=0, facecolors=cols[random_order, :],
                marker="o")
@@ -127,49 +142,187 @@ def verify_pca_vector(p_pca_vector):
     print("P shape: ", p_pca_vector.shape)
 
 
-def verify_images_and_plots(p_pca_vector, v_eig_vector):
-    recv = np.dot(p_pca_vector, v_eig_vector)
-    draw_image(recv[25])
+def verify_images_and_plots(p_pca_vector, v_eig_vector, mu, all_labels):
+    print("Verify Images!")
+    if not ENABLE_IMAGE_SHOW:
+        return
 
-    draw_scatter_plot(P[:, 0], P[:, 1])
+    # recv = np.dot(p_pca_vector, v_eig_vector)
+    # draw_image(recv[IMAGE_INDEX])
 
-    x_rec1 = (np.dot(P[:, 0:1], V[0:1, :])) + MU
-    draw_image(x_rec1[25])
+    draw_image(v_eig_vector[0], "EigVec 0")
+    draw_image(v_eig_vector[1], "EigVec 1")
 
-    x_rec2 = (np.dot(P[:, 0:2], V[0:2, :])) + MU
-    draw_image(x_rec2[25])
+    draw_scatter_plot(p_pca_vector[:, 0], p_pca_vector[:, 1], all_labels)
 
-    x_rec = (np.dot(P, V)) + MU
-    draw_image(x_rec[25])
+    x_rec1 = (np.dot(p_pca_vector[:, 0:1], v_eig_vector[0:1, :])) + mu
+    draw_image(x_rec1[IMAGE_INDEX], "Rec with Pc1")
+
+    x_rec2 = (np.dot(p_pca_vector[:, 0:2], v_eig_vector[0:2, :])) + mu
+    draw_image(x_rec2[IMAGE_INDEX], "Rec with Pc2")
+
+    x_rec2 = (np.dot(p_pca_vector[:, 0:10], v_eig_vector[0:10, :])) + mu
+    draw_image(x_rec2[IMAGE_INDEX], "Rec with Pc10")
+
+    x_rec2 = (np.dot(p_pca_vector[:, 0:100], v_eig_vector[0:100, :])) + mu
+    draw_image(x_rec2[IMAGE_INDEX], "Rec with Pc100")
+
+    x_rec = (np.dot(p_pca_vector, v_eig_vector)) + mu
+    draw_image(x_rec[IMAGE_INDEX], "Rec with all PC")
 
 
-images, labels = load_mnist('training', digits=[5, 6])
-X = get_x_feature_vectors(images)
-draw_image(X[25])
+def get_pc_with_labels(pc_vector, label_list):
+    pc_idx_0 = pc_vector[:, 0]
+    pc_idx_1 = pc_vector[:, 1]
+    return [pc_idx_0, pc_idx_1, label_list]
 
-MU = get_mu_mean_vectors(X)
-Z = get_z_variance_vector(X, MU)
 
-C = get_c_covariance_vector(Z)
-verify_c_covariance_vector(C)
+def get_pca():
+    images, labels = load_mnist('training', digits=[POSITIVE_CLASS, NEGATIVE_CLASS])
+    X = get_x_feature_vectors(images)
+    draw_image(X[IMAGE_INDEX], "X img {}".format(IMAGE_INDEX))
 
-[EigVal, V] = get_eigen_value_vector(C)
-EigRow = V[0, :]
-EigCol = V[:, 0]
+    MU = get_mu_mean_vectors(X)
+    Z = get_z_variance_vector(X, MU)
 
-if is_eigen_values_row_aligned(C, EigVal, V, EigRow, EigCol):
-    print("")
-else:
-    EigVal = np.flipud(EigVal)
-    V = np.flipud(V.T)
+    C = get_c_covariance_vector(Z)
+    verify_c_covariance_vector(C)
 
-P = np.dot(Z, V.T)
-verify_pca_vector(P)
+    [EigVal, V] = get_eigen_value_vector(C)
+    EigRow = V[0, :]
+    EigCol = V[:, 0]
 
-verify_images_and_plots(P, V)
+    if is_eigen_values_row_aligned(C, EigVal, V, EigRow, EigCol):
+        print("")
+    else:
+        EigVal = np.flipud(EigVal)
+        V = np.flipud(V.T)
 
-# get_positive_class(P, labels)
-# get_negative_class(P, labels)
+    P = np.dot(Z, V.T)
+    verify_pca_vector(P)
+    verify_images_and_plots(P, V, MU, labels)
+    return [P, labels]
 
-print()
+
+def get_cube_root(n):
+    return n ** (1.0 / 3.0)
+
+
+def get_optimal_bin_count(min_samples):
+    return get_optimal_bin_count_custom(min_samples)
+
+
+def get_optimal_bin_count_sturges(min_samples):
+    return math.ceil(np.log2(min_samples) + 1)
+
+
+def get_optimal_bin_count_rice(min_samples):
+    return math.ceil(2 * get_cube_root(min_samples))
+
+
+def get_optimal_bin_count_custom(min_samples):
+    return 25
+
+
+def get_bin(xi, xmin, xmax):
+    return int(round((bin_count - 1) * ((xi - xmin) / (xmax - xmin))))
+
+
+def get_histo_matrix_row_col(h, s):
+    r = get_bin(h, min_pc_1, max_pc_1)
+    c = get_bin(s, min_pc_2, max_pc_2)
+    return [r, c]
+
+
+def get_histo_matrix(pos_class_pc1, pos_class_pc2, bin_counts):
+    histo = np.zeros((bin_counts, bin_counts))
+    for h, s in zip(pos_class_pc1, pos_class_pc2):
+        rc_tup = get_histo_matrix_row_col(h, s)
+        histo[rc_tup[0]][rc_tup[1]] = histo[rc_tup[0]][rc_tup[1]] + 1
+    return histo
+
+
+def get_mean_vector(vec):
+    return np.mean(vec, axis=0, dtype=np.float64)
+
+
+def get_covariance_matrix(vec):
+    return np.cov(vec, rowvar=False, ddof=1)
+
+
+def get_2d_pdf(xi, mu_x, cov_x):
+    xi_mu = np.array([np.subtract(xi, mu_x)])
+    cov_inverse = inv(cov_x)
+    xi_mu_transpose = np.transpose(xi_mu)
+    xi_scalar = (np.dot(xi_mu, cov_inverse).dot(xi_mu_transpose))
+    part_2 = math.exp(-1 * xi_scalar / 2)
+    cov_determinant = det(cov_x)
+    part_1 = 1 / (2 * math.pi * math.pow(cov_determinant, 1 / 2))
+    return part_1 * part_2
+
+
+def get_post_probability_xi(xi, len_pos, mu_pos, cov_pos, len_neg, mu_neg, cov_neg):
+    prior_prob_xi_given_pos = get_2d_pdf(xi, mu_pos, cov_pos)
+    prior_prob_xi_given_pos_n = \
+        len_pos * prior_prob_xi_given_pos
+
+    prior_prob_xi_given_neg = get_2d_pdf(xi, mu_neg, cov_neg)
+    prior_prob_xi_given_neg_n = \
+        len_neg * prior_prob_xi_given_neg
+
+    post_prob_neg_given_xi = prior_prob_xi_given_pos_n / (
+        prior_prob_xi_given_pos_n + prior_prob_xi_given_neg_n)
+    return post_prob_neg_given_xi
+
+
+def print_samples():
+    print("\nSample Size:")
+    print("Class +ve({}): {}".format(POSITIVE_CLASS, len(pos_class_pc_1)))
+    print("Class -ve({}): {}".format(NEGATIVE_CLASS, len(neg_class_pc_1)))
+    print("Min pc1 {}, Max pc1 {}".format(min_pc_1, max_pc_1))
+    print("Min pc2 {}, Max pc2 {}".format(min_pc_2, max_pc_2))
+    print("Optimal bin count: {}".format(bin_count))
+
+
+def print_histos():
+    print(pos_class_histo)
+    print(neg_class_histo)
+
+[P, labels] = get_pca()
+[pc_1, pc_2, target_class] = get_pc_with_labels(P, labels)
+pos_class_pc_1 = [pc_1[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
+pos_class_pc_2 = [pc_2[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
+neg_class_pc_1 = [pc_1[idx] for idx in range(len(labels)) if labels[idx] == NEGATIVE_CLASS]
+neg_class_pc_2 = [pc_2[idx] for idx in range(len(labels)) if labels[idx] == NEGATIVE_CLASS]
+
+min_pc_1 = min(min(pos_class_pc_1), min(neg_class_pc_1))
+max_pc_1 = max(max(pos_class_pc_1), max(neg_class_pc_1))
+min_pc_2 = min(min(pos_class_pc_2), min(neg_class_pc_2))
+max_pc_2 = max(max(pos_class_pc_2), max(neg_class_pc_2))
+
+bin_count = get_optimal_bin_count(min(len(pos_class_pc_1),
+                                      len(neg_class_pc_1)))
+
+print_samples()
+
+print("\nClass +ve Histo:")
+pos_class_histo = get_histo_matrix(pos_class_pc_1, pos_class_pc_2, bin_count)
+
+# print("\nPositive Class Histo:")
+# print(np.histogram2d(pos_class_pc_1, pos_class_pc_2, bin_count)[0])
+
+print("\nClass -ve Histo:")
+neg_class_histo = get_histo_matrix(neg_class_pc_1, neg_class_pc_2, bin_count)
+
+pos_class_pcs = list(zip(pos_class_pc_1, pos_class_pc_2))
+neg_class_pcs = list(zip(neg_class_pc_1, neg_class_pc_2))
+
+Mu_pos_class = get_mean_vector(pos_class_pcs)
+Mu_neg_class = get_mean_vector(neg_class_pcs)
+print("Mu +ve: ", Mu_pos_class, ", Mu -ve: ", Mu_neg_class)
+
+Cov_pos_class = get_covariance_matrix(pos_class_pcs)
+Cov_neg_class = get_covariance_matrix(neg_class_pcs)
+print("Cov +ve: ", Cov_pos_class, ", Mu -ve: ", Cov_neg_class)
+
 
