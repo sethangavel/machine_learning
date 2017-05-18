@@ -10,7 +10,9 @@ import numpy.linalg as la
 
 POSITIVE_CLASS = 5
 NEGATIVE_CLASS = 6
-IMAGE_INDEX = 100
+RANDOM_REP_INDEX = 100
+XP_INDEX = 25
+XN_INDEX = 50
 SCATTER_PLOT_ALPHA = 0.25
 ENABLE_IMAGE_SHOW = True
 
@@ -60,6 +62,14 @@ def draw_image(byte_array, img_title):
     plt.imshow(byte_array.reshape(28, 28), interpolation='None', cmap=cm.gray)
     plt.title(img_title)
     show()
+
+
+def draw_image_subplot(byte_array, img_title, sub_plt):
+    if not ENABLE_IMAGE_SHOW:
+        return
+    sub_plt.imshow(byte_array.reshape(28, 28), interpolation='None', cmap=cm.gray)
+    sub_plt.set_title(img_title)
+    sub_plt.axis('off')
 
 
 def draw_scatter_plot(cloud_a, cloud_b, all_labels):
@@ -142,33 +152,35 @@ def verify_pca_vector(p_pca_vector):
     print("P shape: ", p_pca_vector.shape)
 
 
-def verify_images_and_plots(p_pca_vector, v_eig_vector, mu, all_labels):
+def verify_images_and_plots(x_matrix, mu_vec, z_vec, c_vec, v_eig_vector, p_pca_vector,
+                            all_labels, image_index):
     print("Verify Images!")
     if not ENABLE_IMAGE_SHOW:
         return
 
-    # recv = np.dot(p_pca_vector, v_eig_vector)
-    # draw_image(recv[IMAGE_INDEX])
+    fig = plt.figure()
+    draw_image_subplot(x_matrix[image_index], "X img {}".format(image_index), fig.add_subplot(241))
 
-    draw_image(v_eig_vector[0], "EigVec 0")
-    draw_image(v_eig_vector[1], "EigVec 1")
+    print(v_eig_vector[0])
+    print(v_eig_vector[1])
 
-    draw_scatter_plot(p_pca_vector[:, 0], p_pca_vector[:, 1], all_labels)
+    draw_image_subplot(v_eig_vector[0], "EigVec 0", fig.add_subplot(242))
+    draw_image_subplot(v_eig_vector[1], "EigVec 1", fig.add_subplot(243))
 
-    x_rec1 = (np.dot(p_pca_vector[:, 0:1], v_eig_vector[0:1, :])) + mu
-    draw_image(x_rec1[IMAGE_INDEX], "Rec with Pc1")
+    x_rec1 = (np.dot(p_pca_vector[:, 0:1], v_eig_vector[0:1, :])) + mu_vec
+    draw_image_subplot(x_rec1[image_index], "Rec with Pc1", fig.add_subplot(244))
 
-    x_rec2 = (np.dot(p_pca_vector[:, 0:2], v_eig_vector[0:2, :])) + mu
-    draw_image(x_rec2[IMAGE_INDEX], "Rec with Pc2")
+    x_rec2 = (np.dot(p_pca_vector[:, 0:10], v_eig_vector[0:10, :])) + mu_vec
+    draw_image_subplot(x_rec2[image_index], "Rec with Pc10", fig.add_subplot(245))
 
-    x_rec2 = (np.dot(p_pca_vector[:, 0:10], v_eig_vector[0:10, :])) + mu
-    draw_image(x_rec2[IMAGE_INDEX], "Rec with Pc10")
+    x_rec2 = (np.dot(p_pca_vector[:, 0:100], v_eig_vector[0:100, :])) + mu_vec
+    draw_image_subplot(x_rec2[image_index], "Rec with Pc100", fig.add_subplot(246))
 
-    x_rec2 = (np.dot(p_pca_vector[:, 0:100], v_eig_vector[0:100, :])) + mu
-    draw_image(x_rec2[IMAGE_INDEX], "Rec with Pc100")
+    x_rec = (np.dot(p_pca_vector, v_eig_vector)) + mu_vec
+    draw_image_subplot(x_rec[image_index], "Rec with all PC", fig.add_subplot(247))
 
-    x_rec = (np.dot(p_pca_vector, v_eig_vector)) + mu
-    draw_image(x_rec[IMAGE_INDEX], "Rec with all PC")
+    fig.tight_layout(pad=0)
+    show()
 
 
 def get_pc_with_labels(pc_vector, label_list):
@@ -178,30 +190,28 @@ def get_pc_with_labels(pc_vector, label_list):
 
 
 def get_pca():
-    images, labels = load_mnist('training', digits=[POSITIVE_CLASS, NEGATIVE_CLASS])
-    X = get_x_feature_vectors(images)
-    draw_image(X[IMAGE_INDEX], "X img {}".format(IMAGE_INDEX))
+    images, l_labels = load_mnist('training', digits=[POSITIVE_CLASS, NEGATIVE_CLASS])
 
-    MU = get_mu_mean_vectors(X)
-    Z = get_z_variance_vector(X, MU)
+    x = get_x_feature_vectors(images)
+    mu = get_mu_mean_vectors(x)
+    z = get_z_variance_vector(x, mu)
+    c = get_c_covariance_vector(z)
+    verify_c_covariance_vector(c)
 
-    C = get_c_covariance_vector(Z)
-    verify_c_covariance_vector(C)
+    [eig_val, v] = get_eigen_value_vector(c)
+    eig_row = v[0, :]
+    eig_col = v[:, 0]
 
-    [EigVal, V] = get_eigen_value_vector(C)
-    EigRow = V[0, :]
-    EigCol = V[:, 0]
-
-    if is_eigen_values_row_aligned(C, EigVal, V, EigRow, EigCol):
+    if is_eigen_values_row_aligned(c, eig_val, v, eig_row, eig_col):
         print("")
     else:
-        EigVal = np.flipud(EigVal)
-        V = np.flipud(V.T)
+        eig_val = np.flipud(eig_val)
+        v = np.flipud(v.T)
 
-    P = np.dot(Z, V.T)
-    verify_pca_vector(P)
-    verify_images_and_plots(P, V, MU, labels)
-    return [P, labels]
+    p = np.dot(z, v.T)
+    verify_pca_vector(p)
+    draw_scatter_plot(p[:, 0], p[:, 1], l_labels)
+    return [x, mu, z, c, v, p, l_labels]
 
 
 def get_cube_root(n):
@@ -288,8 +298,24 @@ def print_histos():
     print(pos_class_histo)
     print(neg_class_histo)
 
-[P, labels] = get_pca()
+
+def get_prob_by_histo(xi_vec, mu_vec, v_vec, p_vec, msg):
+    print(msg)
+    zi_vec = get_z_variance_vector(xi_vec, mu_vec)
+    vi_2d_vec = v_vec[0:2, :]
+    pi_vec = np.dot(zi_vec, vi_2d_vec.T)
+    print("\t", pi_vec)
+    r = get_bin(pi_vec[0], min(p_vec[0]), max(p_vec[0]))
+    c = get_bin(pi_vec[1], min(p_vec[1]), max(p_vec[1]))
+    print("\tR:", r, ", C:", c)
+
+
+[X, MU, Z, C, V, P, labels] = get_pca()
 [pc_1, pc_2, target_class] = get_pc_with_labels(P, labels)
+# verify_images_and_plots(X, MU, Z, C, V, P, labels, RANDOM_REP_INDEX)
+verify_images_and_plots(X, MU, Z, C, V, P, labels, XP_INDEX)
+verify_images_and_plots(X, MU, Z, C, V, P, labels, XN_INDEX)
+
 pos_class_pc_1 = [pc_1[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
 pos_class_pc_2 = [pc_2[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
 neg_class_pc_1 = [pc_1[idx] for idx in range(len(labels)) if labels[idx] == NEGATIVE_CLASS]
@@ -317,12 +343,14 @@ neg_class_histo = get_histo_matrix(neg_class_pc_1, neg_class_pc_2, bin_count)
 pos_class_pcs = list(zip(pos_class_pc_1, pos_class_pc_2))
 neg_class_pcs = list(zip(neg_class_pc_1, neg_class_pc_2))
 
-Mu_pos_class = get_mean_vector(pos_class_pcs)
-Mu_neg_class = get_mean_vector(neg_class_pcs)
-print("Mu +ve: ", Mu_pos_class, ", Mu -ve: ", Mu_neg_class)
+mu_pos_class = get_mean_vector(pos_class_pcs)
+mu_neg_class = get_mean_vector(neg_class_pcs)
+print("Class +ve Bayesian Mu: ", mu_pos_class, ", Class -ve Bayesian Mu: ", mu_neg_class)
 
-Cov_pos_class = get_covariance_matrix(pos_class_pcs)
-Cov_neg_class = get_covariance_matrix(neg_class_pcs)
-print("Cov +ve: ", Cov_pos_class, ", Mu -ve: ", Cov_neg_class)
+cov_pos_class = get_covariance_matrix(pos_class_pcs)
+cov_neg_class = get_covariance_matrix(neg_class_pcs)
+print("Class +ve Bayesian Cov: ", cov_pos_class, ", Class -ve Bayesian Cov: ", cov_neg_class)
 
-
+XP = X[XP_INDEX]
+XN = X[XN_INDEX]
+get_prob_by_histo(XP, MU, V, P, "XP{}".format(XP_INDEX))
