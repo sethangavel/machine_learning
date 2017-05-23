@@ -7,17 +7,29 @@ from array import array as pyarray
 from pylab import *
 from numpy import *
 import numpy.linalg as la
+from sklearn.decomposition import PCA as sk_pca
+from sklearn.metrics import accuracy_score
 
 POSITIVE_CLASS = 5
 NEGATIVE_CLASS = 6
-RANDOM_REP_INDEX = 100
-XP_INDEX = 25
-XN_INDEX = 50
+XP_INDEX = 41
+XN_INDEX = 47
 SCATTER_PLOT_ALPHA = 0.25
-ENABLE_IMAGE_SHOW = True
+ENABLE_IMAGE_SHOW = False
+FORCE_EIGEN_FLIP = True
+DEBUG_LOG = False
 
-np.set_printoptions(precision=4)
-np.set_printoptions(suppress=True)
+# np.set_printoptions(precision=4)
+# np.set_printoptions(suppress=True)
+
+
+def log_debug(*args):
+    if DEBUG_LOG:
+        print(*args)
+
+
+def log(*args):
+    print(*args)
 
 
 def load_mnist(dataset="training", digits=range(10), path='data/3/'):
@@ -56,10 +68,11 @@ def load_mnist(dataset="training", digits=range(10), path='data/3/'):
 
 
 def draw_image(byte_array, img_title):
-    print("Image!")
+    img_byte_array_len = len(np.ravel(byte_array))
+    dim = int(np.sqrt(img_byte_array_len))
     if not ENABLE_IMAGE_SHOW:
         return
-    plt.imshow(byte_array.reshape(28, 28), interpolation='None', cmap=cm.gray)
+    plt.imshow(byte_array.reshape(dim, dim), interpolation='None', cmap=cm.gray)
     plt.title(img_title)
     show()
 
@@ -72,8 +85,8 @@ def draw_image_subplot(byte_array, img_title, sub_plt):
     sub_plt.axis('off')
 
 
-def draw_scatter_plot(cloud_a, cloud_b, all_labels):
-    print("Scatter Plot!")
+def draw_scatter_plot(cloud_a, cloud_b, xp, xn, all_labels):
+    log("\nPC Scatter Plot: {}, {}!".format(xp, xn))
     if not ENABLE_IMAGE_SHOW:
         return
     fig = plt.figure()
@@ -85,9 +98,13 @@ def draw_scatter_plot(cloud_a, cloud_b, all_labels):
             cols[idx] = [0, 1, 0, SCATTER_PLOT_ALPHA]
     random_order = np.arange(np.alen(all_labels))
     ax = fig.add_subplot(111, facecolor='black')
-    ax.scatter(cloud_b, cloud_a, s=5, linewidths=0, facecolors=cols[random_order, :],
-               marker="o")
+    ax.scatter(cloud_b, cloud_a, s=5, linewidths=0,
+               facecolors=cols[random_order, :], marker="o")
+    ax.plot(xp[0], xp[1], marker='x', color='yellow', label='xp')
+    ax.plot(xn[0], xn[1], marker='*', color='yellow', label='xn')
+    ax.legend(loc='lower left', numpoints=1, ncol=3, fontsize=8, bbox_to_anchor=(0, 0))
     ax.set_aspect('equal')
+    plt.rcParams['axes.facecolor'] = 'b'
     plt.gca().invert_yaxis()
     plt.title('scatter plot of Principal components')
     plt.show()
@@ -99,26 +116,27 @@ def get_x_feature_vectors(images_3d_array):
     for i in images_3d_array:
         flat_images.append(i.ravel())
     x_feature_vectors = np.asarray(flat_images)
-    print("X shape: ", x_feature_vectors.shape)
-    print("X min/max: ", np.amin(x_feature_vectors), np.amax(x_feature_vectors))
+    log_debug("X shape: ", x_feature_vectors.shape)
+    log_debug("X min/max: ", np.amin(x_feature_vectors), np.amax(x_feature_vectors))
     return x_feature_vectors
 
 
 def get_mu_mean_vectors(x_feature_vector):
-    mu = np.mean(x_feature_vector, axis=0)
-    print("MU shape:", mu.shape)
+    mu = np.mean(x_feature_vector, axis=0, dtype=np.float64)
+    log_debug("MU shape:", mu.shape)
     return mu
 
 
 def get_z_variance_vector(x_feature_vector, mu_mean_vector):
-    z = x_feature_vector - mu_mean_vector
-    print("Z shape: ", z.shape)
+    z = np.subtract(x_feature_vector, mu_mean_vector)
+    log_debug("Z shape: ", z.shape)
     return z
 
 
 def get_c_covariance_vector(z_variance_vector):
     c = np.cov(z_variance_vector, rowvar=False, ddof=1)
-    print("C shape: ", c.shape)
+    log_debug("C shape: ", c.shape)
+    draw_image(c, "Cov")
     return c
 
 
@@ -131,38 +149,48 @@ def verify_c_covariance_vector(c_covariance_vector):
             if idx_r == idx_c:
                 assert c_covariance_vector[idx_r][idx_c] >= 0
             assert c_covariance_vector[idx_r][idx_c] == c_covariance_vector[idx_c][idx_r]
-    print("C Verification: Good!")
+    log_debug("C Verification: Good!")
     return
 
 
-def get_eigen_value_vector(c_covariance_vector):
+def get_eigen_value_n_vector(c_covariance_vector):
     [eig_val, eig_vec] = la.eigh(c_covariance_vector)
-    print("EigVal len: ", len(eig_val))
-    print("EigVec shape: ", eig_vec.shape)
+    log_debug("EigVal len: ", len(eig_val))
+    log_debug("EigVec shape: ", eig_vec.shape)
     return [eig_val, eig_vec]
 
 
+def verify_v_eigen_value_n_vector(eig_val, v_vec):
+    for row in v_vec:
+        if round(np.linalg.norm(row)) != 1.0:
+            log_debug(np.linalg.norm(row))
+    assert round(np.dot(v_vec[10], v_vec[100]), 5) == 0
+
+
 def is_eigen_values_row_aligned(c_covariance_matrix, eig_val, eig_vec, row, col):
-    # print(np.dot(C, row) / (EigVal[0] * row))
-    # print(np.dot(C, col) / (EigVal[0] * col))
+    # log_debug(eig_val)
+    # log_debug(np.dot(c_covariance_matrix, row) / (eig_val[0] * row))
+    # log_debug(np.dot(c_covariance_matrix, col) / (eig_val[0] * col))
+    sum_x = round(sum(np.dot(c_covariance_matrix, eig_vec[0]) - np.dot(eig_val[0], eig_vec[0])), 8)
+    log_debug("EigVec Verifi: ", sum_x)
+    if sum_x == 0.0:
+        return True
     return False
 
 
 def verify_pca_vector(p_pca_vector):
-    print("P shape: ", p_pca_vector.shape)
+    assert round(max(abs(np.mean(p_pca_vector, axis=0))), 5) == 0
+    log_debug("P shape: ", p_pca_vector.shape)
 
 
 def verify_images_and_plots(x_matrix, mu_vec, z_vec, c_vec, v_eig_vector, p_pca_vector,
                             all_labels, image_index):
-    print("Verify Images!")
+    log_debug("Verify Images!")
     if not ENABLE_IMAGE_SHOW:
         return
 
     fig = plt.figure()
     draw_image_subplot(x_matrix[image_index], "X img {}".format(image_index), fig.add_subplot(241))
-
-    print(v_eig_vector[0])
-    print(v_eig_vector[1])
 
     draw_image_subplot(v_eig_vector[0], "EigVec 0", fig.add_subplot(242))
     draw_image_subplot(v_eig_vector[1], "EigVec 1", fig.add_subplot(243))
@@ -189,6 +217,19 @@ def get_pc_with_labels(pc_vector, label_list):
     return [pc_idx_0, pc_idx_1, label_list]
 
 
+def get_pca_xi(xi, mu, zz):
+    z = get_z_variance_vector(xi, mu)
+    c = get_c_covariance_vector(zz)
+    verify_c_covariance_vector(c)
+
+    [eig_val, v] = get_eigen_value_n_vector(c)
+    verify_v_eigen_value_n_vector(eig_val, v)
+    eig_val = np.flipud(eig_val)
+    v = np.flipud(v.T)
+    p_xi = np.dot(z, v.T)
+    return p_xi[0:2]
+
+
 def get_pca():
     images, l_labels = load_mnist('training', digits=[POSITIVE_CLASS, NEGATIVE_CLASS])
 
@@ -198,19 +239,24 @@ def get_pca():
     c = get_c_covariance_vector(z)
     verify_c_covariance_vector(c)
 
-    [eig_val, v] = get_eigen_value_vector(c)
+    [eig_val, v] = get_eigen_value_n_vector(c)
+    verify_v_eigen_value_n_vector(eig_val, v)
     eig_row = v[0, :]
     eig_col = v[:, 0]
 
-    if is_eigen_values_row_aligned(c, eig_val, v, eig_row, eig_col):
-        print("")
+    if is_eigen_values_row_aligned(c, eig_val, v, eig_row, eig_col) and not FORCE_EIGEN_FLIP:
+        log_debug("EigVec is already ROW aligned")
     else:
+        log_debug("EigVec is COL aligned")
         eig_val = np.flipud(eig_val)
         v = np.flipud(v.T)
+        if is_eigen_values_row_aligned(c, eig_val, v, eig_row, eig_col):
+            log_debug("EigVec is already ROW aligned")
+        else:
+            assert "EigVec failed to be ROW aligned!"
 
     p = np.dot(z, v.T)
     verify_pca_vector(p)
-    draw_scatter_plot(p[:, 0], p[:, 1], l_labels)
     return [x, mu, z, c, v, p, l_labels]
 
 
@@ -244,82 +290,211 @@ def get_histo_matrix_row_col(h, s):
     return [r, c]
 
 
-def get_histo_matrix(pos_class_pc1, pos_class_pc2, bin_counts):
+def get_histo_matrix(pi1, pi2, bin_counts):
     histo = np.zeros((bin_counts, bin_counts))
-    for h, s in zip(pos_class_pc1, pos_class_pc2):
+    for h, s in zip(pi1, pi2):
         rc_tup = get_histo_matrix_row_col(h, s)
         histo[rc_tup[0]][rc_tup[1]] = histo[rc_tup[0]][rc_tup[1]] + 1
     return histo
 
 
-def get_mean_vector(vec):
-    return np.mean(vec, axis=0, dtype=np.float64)
-
-
-def get_covariance_matrix(vec):
-    return np.cov(vec, rowvar=False, ddof=1)
-
-
-def get_2d_pdf(xi, mu_x, cov_x):
+def get_2d_pdf(xi, mu_x, cov_x, ni_samples):
+    log_debug("\tN: ", ni_samples)
     xi_mu = np.array([np.subtract(xi, mu_x)])
     cov_inverse = inv(cov_x)
+    log_debug("\tCov Inv: ", cov_inverse)
     xi_mu_transpose = np.transpose(xi_mu)
-    xi_scalar = (np.dot(xi_mu, cov_inverse).dot(xi_mu_transpose))
-    part_2 = math.exp(-1 * xi_scalar / 2)
+    log_debug("\tMu Trans: ", xi_mu_transpose)
+    xi_scalar = (np.dot(xi_mu, cov_inverse).dot(xi_mu_transpose)) / 2
+    part_2 = math.exp(-1 * xi_scalar)
     cov_determinant = det(cov_x)
-    part_1 = 1 / (2 * math.pi * math.pow(cov_determinant, 1 / 2))
+    part_1 = ni_samples / (2 * math.pi * math.sqrt(cov_determinant))
+    log_debug("\tC Det: ", cov_determinant)
+    log_debug("\traised: ", xi_scalar)
+    log_debug("\tbottom: ", part_1/ni_samples)
+    log_debug("\tpdf: ", part_1 * part_2)
     return part_1 * part_2
 
 
-def get_post_probability_xi(xi, len_pos, mu_pos, cov_pos, len_neg, mu_neg, cov_neg):
-    prior_prob_xi_given_pos = get_2d_pdf(xi, mu_pos, cov_pos)
-    prior_prob_xi_given_pos_n = \
-        len_pos * prior_prob_xi_given_pos
-
-    prior_prob_xi_given_neg = get_2d_pdf(xi, mu_neg, cov_neg)
-    prior_prob_xi_given_neg_n = \
-        len_neg * prior_prob_xi_given_neg
-
-    post_prob_neg_given_xi = prior_prob_xi_given_pos_n / (
-        prior_prob_xi_given_pos_n + prior_prob_xi_given_neg_n)
-    return post_prob_neg_given_xi
-
-
 def print_samples():
-    print("\nSample Size:")
-    print("Class +ve({}): {}".format(POSITIVE_CLASS, len(pos_class_pc_1)))
-    print("Class -ve({}): {}".format(NEGATIVE_CLASS, len(neg_class_pc_1)))
-    print("Min pc1 {}, Max pc1 {}".format(min_pc_1, max_pc_1))
-    print("Min pc2 {}, Max pc2 {}".format(min_pc_2, max_pc_2))
-    print("Optimal bin count: {}".format(bin_count))
+    log_debug("\nSample Size:")
+    log_debug("Class +ve({}): {}".format(POSITIVE_CLASS, len(pos_class_pc_1)))
+    log_debug("Class -ve({}): {}".format(NEGATIVE_CLASS, len(neg_class_pc_1)))
+    log_debug("Min pc1 {}, Max pc1 {}".format(min_pc_1, max_pc_1))
+    log_debug("Min pc2 {}, Max pc2 {}".format(min_pc_2, max_pc_2))
+    log_debug("Optimal bin count: {}".format(bin_count))
 
 
-def print_histos():
-    print(pos_class_histo)
-    print(neg_class_histo)
-
-
-def get_prob_by_histo(xi_vec, mu_vec, v_vec, p_vec, msg):
-    print(msg)
-    zi_vec = get_z_variance_vector(xi_vec, mu_vec)
+def get_prob_by_histo(h_p, h_n, xi, mu_vec, v_vec, msg):
+    log_debug("\n\n", msg)
+    log_debug("Xi.shape: ", xi.shape)
+    draw_image(xi, msg)
+    zi_vec = get_z_variance_vector(xi, mu_vec)
+    log_debug("Zi.shape: ", zi_vec.shape)
     vi_2d_vec = v_vec[0:2, :]
+    log_debug("Vi.shape: ", vi_2d_vec.shape)
     pi_vec = np.dot(zi_vec, vi_2d_vec.T)
-    print("\t", pi_vec)
-    r = get_bin(pi_vec[0], min(p_vec[0]), max(p_vec[0]))
-    c = get_bin(pi_vec[1], min(p_vec[1]), max(p_vec[1]))
-    print("\tR:", r, ", C:", c)
+    log_debug("\t", pi_vec)
+    r = get_bin(pi_vec[0], min_pc_1, max_pc_1)
+    c = get_bin(pi_vec[1], min_pc_2, max_pc_2)
+    xi_count = h_p[r][c]
+    xj_count = h_n[r][c]
+    xi_p = xi_count / (xi_count + xj_count)
+    xi_n = xj_count / (xi_count + xj_count)
+    log_debug("\tR:", r, ", C:", c, "i_Histo: ", xi_count, "j_Histo: ", xj_count)
+    if xi_count + xj_count == 0:
+        return "Undecidable!"
+    else:
+        return [xi_p, xi_n]
+
+
+def get_bayes_2d_pdf(mu_i_vec, cov_i_vec, pc_i_vec, pi_vec, msg_str):
+    log_debug(msg_str)
+    ni_samples = len(pc_i_vec)
+    return get_2d_pdf(pi_vec, mu_i_vec, cov_i_vec, ni_samples)
+
+
+def get_xi_prob_by_histo(pos_pc_1, pos_pc_2, neg_pc_1, neg_pc_2, binc, xp, xn):
+    log("\n\n\n")
+    log("HISTO")
+    log("-----")
+    log_debug("\tClass +ve Histo:")
+    pos_class_histo = get_histo_matrix(pos_pc_1, pos_pc_2, binc)
+    draw_image(pos_class_histo, "+ve Histo")
+    log("\tClass +ve Histo: ", sum(pos_class_histo))
+    pos_class_histo_npformula = np.histogram2d(pos_pc_1, pos_pc_2, binc)[0]
+    draw_image(pos_class_histo_npformula, "+ve Histo")
+
+    log_debug("\tClass -ve Histo:")
+    neg_class_histo = get_histo_matrix(neg_pc_1, neg_pc_2, binc)
+    draw_image(neg_class_histo, "-ve Histo")
+    log("\tClass -ve Histo: ", sum(neg_class_histo))
+    neg_class_histo_npformula = np.histogram2d(neg_pc_1, neg_pc_2, binc)[0]
+    draw_image(neg_class_histo_npformula, "-ve Histo")
+
+    xp_prob_histo = get_prob_by_histo(pos_class_histo, neg_class_histo,
+                                      xp, MU, V, "Histo XP{} +ve".format(XP_INDEX))
+    xn_prob_histo = get_prob_by_histo(pos_class_histo, neg_class_histo,
+                                      xn, MU, V, "Histo XN{} -ve".format(XN_INDEX))
+    log("\tXP : ", XP_INDEX, ", truth: ", labels[XP_INDEX], ", Prob Histo {}: {}".format(
+        POSITIVE_CLASS, xp_prob_histo[0]))
+    log("\tXn : ", XN_INDEX, ", truth: ", labels[XN_INDEX], ", Prob Histo {}: {}".format(
+        NEGATIVE_CLASS, xn_prob_histo[1]))
+    return [pos_class_histo, neg_class_histo]
+
+
+def get_xi_prob_by_bayes(pos_pcs, neg_pcs, xp_pc, xn_pc):
+    log("\n\n\n")
+    log("BAYES")
+    log("-----")
+    log("\tBayes Query: \n", xp_pc, "\n", xn_pc)
+    mu_p = get_mu_mean_vectors(pos_pcs)
+    mu_n = get_mu_mean_vectors(neg_pcs)
+    log_debug("\tClass +ve Bayesian Mu: ", mu_p, ", Class -ve Bayesian Mu: ", mu_n)
+
+    c_p = get_c_covariance_vector(pos_pcs)
+    verify_c_covariance_vector(c_p)
+    c_n = get_c_covariance_vector(neg_pcs)
+    verify_c_covariance_vector(c_n)
+    log_debug("\tClass +ve Bayesian Cov: ", c_p, ", Class -ve Bayesian Cov: ", c_n)
+
+    xp_p_pdf = get_bayes_2d_pdf(mu_p, c_p, pos_pcs, xp_pc, "XP{}".format(XP_INDEX))
+    xp_n_pdf = get_bayes_2d_pdf(mu_n, c_n, neg_pcs, xp_pc, "XP{}".format(XP_INDEX))
+
+    xn_p_pdf = get_bayes_2d_pdf(mu_p, c_p, pos_pcs, xn_pc, "XN{}".format(XN_INDEX))
+    xn_n_pdf = get_bayes_2d_pdf(mu_n, c_n, neg_pcs, xn_pc, "XN{}".format(XN_INDEX))
+
+    xp_prob_bayes = xp_p_pdf / (xp_p_pdf + xp_n_pdf)
+    xn_prob_bayes = xn_n_pdf / (xn_p_pdf + xn_n_pdf)
+    log("\tXP : ", XP_INDEX, ", truth: ", labels[XP_INDEX], ", Prob Histo {}: {}".format(
+        POSITIVE_CLASS, xp_prob_bayes))
+    log("\tXN : ", XN_INDEX, ", truth: ", labels[XN_INDEX], ", Prob Histo {}: {}".format(
+        NEGATIVE_CLASS, xn_prob_bayes))
+
+
+def get_xi_prob_from_sk(x_all, xp_index, xn_index):
+    log("\n\n\n")
+    log("SK")
+    log("-----")
+    skpca = sk_pca(n_components=2)
+    pcs = skpca.fit_transform(x_all)
+    log_debug("\tSK PCA: ", pcs.shape)
+
+    pos_pcs = [pcs[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
+    neg_pcs = [pcs[idx] for idx in range(len(labels)) if labels[idx] == NEGATIVE_CLASS]
+    assert(len(pos_pcs) == len(pos_class_pcs))
+    assert(len(neg_pcs) == len(neg_class_pcs))
+    draw_scatter_plot(pcs[:, 0], P[:, 1], pcs[xp_index], pcs[xn_index], labels)
+    get_xi_prob_by_bayes(pos_pcs, neg_pcs, pcs[xp_index], pcs[xn_index])
+
+
+def get_training_accuracy_by_histo(hp, hn, mu_vec, v_vec, x_all, x_labels):
+    num_right_predictions = 0
+    xi_pred = [POSITIVE_CLASS]
+    log("Xi\tPred?\tTruth?")
+    for xi_index in range(len(x_all)):
+        xi_truth = x_labels[xi_index]
+        xi_p_n = get_prob_by_histo(hp, hn, x_all[xi_index],
+                                   mu_vec, v_vec, "Histo Xi{}".format(xi_index))
+        if xi_p_n[0] > 0.5:
+            xi_pred = [POSITIVE_CLASS]
+        else:
+            xi_pred = [NEGATIVE_CLASS]
+
+        if xi_pred == xi_truth:
+            num_right_predictions += 1
+            log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
+        else:
+            log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
+    log("Histo Accuracy: ", num_right_predictions / (1.0 * len(x_labels)))
+
+
+def get_training_accuracy_by_bayes(pos_pcs, neg_pcs, p_all, x_labels):
+    mu_p = get_mu_mean_vectors(pos_pcs)
+    mu_n = get_mu_mean_vectors(neg_pcs)
+    c_p = get_c_covariance_vector(pos_pcs)
+    c_n = get_c_covariance_vector(neg_pcs)
+
+    num_right_predictions = 0
+    xi_pred = [POSITIVE_CLASS]
+    p_all_major = p_all[:, 0:2]
+    log("Xi\tPred?\tTruth?")
+    for xi_index in range(len(p_all)):
+        xi_pc = p_all_major[xi_index]
+        xi_truth = x_labels[xi_index]
+        xi_p_pdf = get_bayes_2d_pdf(mu_p, c_p, pos_pcs, xi_pc, "XP{}".format(XP_INDEX))
+        xi_n_pdf = get_bayes_2d_pdf(mu_n, c_n, neg_pcs, xi_pc, "XP{}".format(XP_INDEX))
+        xi_prob_bayes = xi_p_pdf / (xi_p_pdf + xi_n_pdf)
+
+        if xi_prob_bayes > 0.5:
+            xi_pred = [POSITIVE_CLASS]
+        else:
+            xi_pred = [NEGATIVE_CLASS]
+
+        if xi_pred == xi_truth:
+            num_right_predictions += 1
+            log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
+        else:
+            log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
+    log("Bayes Accuracy: ", num_right_predictions / (1.0 * len(x_labels)))
 
 
 [X, MU, Z, C, V, P, labels] = get_pca()
 [pc_1, pc_2, target_class] = get_pc_with_labels(P, labels)
-# verify_images_and_plots(X, MU, Z, C, V, P, labels, RANDOM_REP_INDEX)
 verify_images_and_plots(X, MU, Z, C, V, P, labels, XP_INDEX)
 verify_images_and_plots(X, MU, Z, C, V, P, labels, XN_INDEX)
 
 pos_class_pc_1 = [pc_1[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
 pos_class_pc_2 = [pc_2[idx] for idx in range(len(labels)) if labels[idx] == POSITIVE_CLASS]
+assert (len(pos_class_pc_1) == len(pos_class_pc_2))
+
 neg_class_pc_1 = [pc_1[idx] for idx in range(len(labels)) if labels[idx] == NEGATIVE_CLASS]
 neg_class_pc_2 = [pc_2[idx] for idx in range(len(labels)) if labels[idx] == NEGATIVE_CLASS]
+assert (len(neg_class_pc_1) == len(neg_class_pc_2))
+
+pos_class_pcs = list(zip(pos_class_pc_1, pos_class_pc_2))
+neg_class_pcs = list(zip(neg_class_pc_1, neg_class_pc_2))
+pcs = list(zip(pc_1, pc_2))
 
 min_pc_1 = min(min(pos_class_pc_1), min(neg_class_pc_1))
 max_pc_1 = max(max(pos_class_pc_1), max(neg_class_pc_1))
@@ -328,29 +503,28 @@ max_pc_2 = max(max(pos_class_pc_2), max(neg_class_pc_2))
 
 bin_count = get_optimal_bin_count(min(len(pos_class_pc_1),
                                       len(neg_class_pc_1)))
-
 print_samples()
 
-print("\nClass +ve Histo:")
-pos_class_histo = get_histo_matrix(pos_class_pc_1, pos_class_pc_2, bin_count)
-
-# print("\nPositive Class Histo:")
-# print(np.histogram2d(pos_class_pc_1, pos_class_pc_2, bin_count)[0])
-
-print("\nClass -ve Histo:")
-neg_class_histo = get_histo_matrix(neg_class_pc_1, neg_class_pc_2, bin_count)
-
-pos_class_pcs = list(zip(pos_class_pc_1, pos_class_pc_2))
-neg_class_pcs = list(zip(neg_class_pc_1, neg_class_pc_2))
-
-mu_pos_class = get_mean_vector(pos_class_pcs)
-mu_neg_class = get_mean_vector(neg_class_pcs)
-print("Class +ve Bayesian Mu: ", mu_pos_class, ", Class -ve Bayesian Mu: ", mu_neg_class)
-
-cov_pos_class = get_covariance_matrix(pos_class_pcs)
-cov_neg_class = get_covariance_matrix(neg_class_pcs)
-print("Class +ve Bayesian Cov: ", cov_pos_class, ", Class -ve Bayesian Cov: ", cov_neg_class)
+log_debug("Chosen XP is Label: ", labels[XP_INDEX])
+log_debug("Chosen XN is Label: ", labels[XN_INDEX])
 
 XP = X[XP_INDEX]
 XN = X[XN_INDEX]
-get_prob_by_histo(XP, MU, V, P, "XP{}".format(XP_INDEX))
+PP = pcs[XP_INDEX]
+PN = pcs[XN_INDEX]
+
+[HP, HN] = get_xi_prob_by_histo(pos_class_pc_1, pos_class_pc_2,
+                                neg_class_pc_1, neg_class_pc_2,
+                                bin_count, XP, XN)
+
+pp_x = get_pca_xi(XP, MU, Z)
+pn_x = get_pca_xi(XN, MU, Z)
+log_debug("pp_x: ", pp_x, ", PP: ", PP)
+get_xi_prob_by_bayes(pos_class_pcs, neg_class_pcs, PP, PN)
+
+draw_scatter_plot(P[:, 0], P[:, 1], PP, PN, labels)
+
+get_xi_prob_from_sk(X, XP_INDEX, XN_INDEX)
+
+get_training_accuracy_by_histo(HP, HN, MU, V, X, labels)
+get_training_accuracy_by_bayes(pos_class_pcs, neg_class_pcs, P, labels)

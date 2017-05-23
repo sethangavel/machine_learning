@@ -15,7 +15,7 @@ INDEX_COL_GENDER = 0
 INDEX_COL_HEIGHT = 1
 INDEX_COL_HANDSPAN = 2
 workbook = xlrd.open_workbook(
-    '/Users/manoj/my/course/ML/Assignments/Assignment_2_Data_and_Template.xlsx')
+    'data/2/Assignment_2_Data_and_Template.xlsx')
 query = [[69, 17.5], [66, 22], [70, 21.5], [69, 23.5]]
 worksheet = workbook.sheet_by_index(INDEX_SHEET)
 
@@ -203,9 +203,12 @@ print("Optimal bin count: {}".format(bin_count))
 print("\nFemale Histogram")
 female_hs_histo = get_histo_matrix(female_height_handspan_list)
 print(female_hs_histo)
+female_hs_histo_npformula = np.histogram2d(female_height_list, female_handspan_list, 8)[0]
+
 print("\nMale Histogram")
 male_hs_histo = get_histo_matrix(male_height_handspan_list)
 print(male_hs_histo)
+male_hs_histo_npformula = np.histogram2d(male_height_list, male_handspan_list, 8)[0]
 
 print("\nPosterior probability of being Female given features:")
 print(get_prob_by_histo(query))
