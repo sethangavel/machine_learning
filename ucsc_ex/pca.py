@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import csv
 import struct
 import matplotlib as plt
 from array import array as pyarray
@@ -8,19 +9,22 @@ from pylab import *
 from numpy import *
 import numpy.linalg as la
 from sklearn.decomposition import PCA as sk_pca
-from sklearn.metrics import accuracy_score
 
-POSITIVE_CLASS = 5
-NEGATIVE_CLASS = 6
-XP_INDEX = 41
-XN_INDEX = 47
-SCATTER_PLOT_ALPHA = 0.25
+POSITIVE_CLASS = 4
+NEGATIVE_CLASS = 3
+XP_INDEX = 1302
+XN_INDEX = 250
+SCATTER_PLOT_ALPHA = 0.4
 ENABLE_IMAGE_SHOW = False
 FORCE_EIGEN_FLIP = True
 DEBUG_LOG = False
+OUT_CSV_FILE = "out/pca_2.csv"
+OUT_CSV_FD = None
+OUT_STREAM = None
+OUT_SKIP = True
 
-# np.set_printoptions(precision=4)
-# np.set_printoptions(suppress=True)
+np.set_printoptions(precision=5)
+np.set_printoptions(suppress=True)
 
 
 def log_debug(*args):
@@ -87,26 +91,26 @@ def draw_image_subplot(byte_array, img_title, sub_plt):
 
 def draw_scatter_plot(cloud_a, cloud_b, xp, xn, all_labels):
     log("\nPC Scatter Plot: {}, {}!".format(xp, xn))
-    if not ENABLE_IMAGE_SHOW:
-        return
+    #if not ENABLE_IMAGE_SHOW:
+    #    return
     fig = plt.figure()
     cols = np.zeros((alen(all_labels), 4))
     for idx, ll in enumerate(all_labels):
         if ll == POSITIVE_CLASS:
             cols[idx] = [1, 0, 0, SCATTER_PLOT_ALPHA]
         if ll == NEGATIVE_CLASS:
-            cols[idx] = [0, 1, 0, SCATTER_PLOT_ALPHA]
+            cols[idx] = [0, 0.2, 1, SCATTER_PLOT_ALPHA]
     random_order = np.arange(np.alen(all_labels))
-    ax = fig.add_subplot(111, facecolor='black')
-    ax.scatter(cloud_b, cloud_a, s=5, linewidths=0,
-               facecolors=cols[random_order, :], marker="o")
-    ax.plot(xp[0], xp[1], marker='x', color='yellow', label='xp')
-    ax.plot(xn[0], xn[1], marker='*', color='yellow', label='xn')
-    ax.legend(loc='lower left', numpoints=1, ncol=3, fontsize=8, bbox_to_anchor=(0, 0))
+    ax = fig.add_subplot(111, facecolor='white')
+    ax.scatter(cloud_b, cloud_a, s=8, linewidths=0,
+               facecolors=cols[random_order, :], marker='o')
+    ax.plot(xp[1], xp[0], marker='x', color='black', label='XP[{}]'.format(POSITIVE_CLASS))
+    ax.plot(xn[1], xn[0], marker='*', color='black', label='XN[{}]'.format(NEGATIVE_CLASS))
+    ax.legend(loc='lower left', numpoints=1, ncol=3, fontsize=10, bbox_to_anchor=(0, 0))
     ax.set_aspect('equal')
     plt.rcParams['axes.facecolor'] = 'b'
     plt.gca().invert_yaxis()
-    plt.title('scatter plot of Principal components')
+    plt.title('Principal Components PC1 and PC2 scatter plot\nManoj Govindassamy')
     plt.show()
 
 
@@ -136,7 +140,7 @@ def get_z_variance_vector(x_feature_vector, mu_mean_vector):
 def get_c_covariance_vector(z_variance_vector):
     c = np.cov(z_variance_vector, rowvar=False, ddof=1)
     log_debug("C shape: ", c.shape)
-    draw_image(c, "Cov")
+    # draw_image(c, "Cov")
     return c
 
 
@@ -227,6 +231,16 @@ def get_pca_xi(xi, mu, zz):
     eig_val = np.flipud(eig_val)
     v = np.flipud(v.T)
     p_xi = np.dot(z, v.T)
+
+    write_file_array("(74) xp: ", xi)
+    write_file_array("(75) zp: ", z)
+    write_file_array("(76) pp: ", p_xi[0:2])
+
+    r_xi = np.dot(p_xi, v)
+    xrec_xi = r_xi + mu
+    write_file_array("(77) rp: ", r_xi)
+    write_file_array("(78) xrecp: ", xrec_xi)
+
     return p_xi[0:2]
 
 
@@ -281,7 +295,7 @@ def get_optimal_bin_count_custom(min_samples):
 
 
 def get_bin(xi, xmin, xmax):
-    return int(round((bin_count - 1) * ((xi - xmin) / (xmax - xmin))))
+    return int(np.around((bin_count - 1) * ((xi - xmin) / (xmax - xmin))))
 
 
 def get_histo_matrix_row_col(h, s):
@@ -316,13 +330,11 @@ def get_2d_pdf(xi, mu_x, cov_x, ni_samples):
     return part_1 * part_2
 
 
-def print_samples():
+def print_histo_samples():
     log_debug("\nSample Size:")
-    log_debug("Class +ve({}): {}".format(POSITIVE_CLASS, len(pos_class_pc_1)))
-    log_debug("Class -ve({}): {}".format(NEGATIVE_CLASS, len(neg_class_pc_1)))
-    log_debug("Min pc1 {}, Max pc1 {}".format(min_pc_1, max_pc_1))
-    log_debug("Min pc2 {}, Max pc2 {}".format(min_pc_2, max_pc_2))
-    log_debug("Optimal bin count: {}".format(bin_count))
+    write_file_array("(17) Min_pc1  Max_pc1: ", [min_pc_1, max_pc_1])
+    write_file_array("(18) Min_pc2  Max_pc2: ", [min_pc_2, max_pc_2])
+    write_file_array("(19) Optimal bin count: ", bin_count)
 
 
 def get_prob_by_histo(h_p, h_n, xi, mu_vec, v_vec, msg):
@@ -362,15 +374,19 @@ def get_xi_prob_by_histo(pos_pc_1, pos_pc_2, neg_pc_1, neg_pc_2, binc, xp, xn):
     pos_class_histo = get_histo_matrix(pos_pc_1, pos_pc_2, binc)
     draw_image(pos_class_histo, "+ve Histo")
     log("\tClass +ve Histo: ", sum(pos_class_histo))
-    pos_class_histo_npformula = np.histogram2d(pos_pc_1, pos_pc_2, binc)[0]
-    draw_image(pos_class_histo_npformula, "+ve Histo")
+    write_file_ndarray("(20) Hp [{}]".format(POSITIVE_CLASS), pos_class_histo)
+
+    # pos_class_histo_npformula = np.histogram2d(pos_pc_1, pos_pc_2, binc)[0]
+    # draw_image(pos_class_histo_npformula, "+ve Histo")
 
     log_debug("\tClass -ve Histo:")
     neg_class_histo = get_histo_matrix(neg_pc_1, neg_pc_2, binc)
     draw_image(neg_class_histo, "-ve Histo")
     log("\tClass -ve Histo: ", sum(neg_class_histo))
-    neg_class_histo_npformula = np.histogram2d(neg_pc_1, neg_pc_2, binc)[0]
-    draw_image(neg_class_histo_npformula, "-ve Histo")
+    write_file_ndarray("(46) Hn [{}]".format(NEGATIVE_CLASS), neg_class_histo)
+
+    # neg_class_histo_npformula = np.histogram2d(neg_pc_1, neg_pc_2, binc)[0]
+    # draw_image(neg_class_histo_npformula, "-ve Histo")
 
     xp_prob_histo = get_prob_by_histo(pos_class_histo, neg_class_histo,
                                       xp, MU, V, "Histo XP{} +ve".format(XP_INDEX))
@@ -378,8 +394,12 @@ def get_xi_prob_by_histo(pos_pc_1, pos_pc_2, neg_pc_1, neg_pc_2, binc, xp, xn):
                                       xn, MU, V, "Histo XN{} -ve".format(XN_INDEX))
     log("\tXP : ", XP_INDEX, ", truth: ", labels[XP_INDEX], ", Prob Histo {}: {}".format(
         POSITIVE_CLASS, xp_prob_histo[0]))
+    write_file_array("(89) Result of classifying xp using histograms: ",
+                     [labels[XP_INDEX], xp_prob_histo[0]])
     log("\tXn : ", XN_INDEX, ", truth: ", labels[XN_INDEX], ", Prob Histo {}: {}".format(
         NEGATIVE_CLASS, xn_prob_histo[1]))
+    write_file_array("(93) Result of classifying xn using histograms: ",
+                     [labels[XN_INDEX], xn_prob_histo[1]])
     return [pos_class_histo, neg_class_histo]
 
 
@@ -391,12 +411,16 @@ def get_xi_prob_by_bayes(pos_pcs, neg_pcs, xp_pc, xn_pc):
     mu_p = get_mu_mean_vectors(pos_pcs)
     mu_n = get_mu_mean_vectors(neg_pcs)
     log_debug("\tClass +ve Bayesian Mu: ", mu_p, ", Class -ve Bayesian Mu: ", mu_n)
+    write_file_array("(9) mup [{}]".format(POSITIVE_CLASS), mu_p)
+    write_file_array("(10) mun [{}]".format(NEGATIVE_CLASS), mu_n)
 
     c_p = get_c_covariance_vector(pos_pcs)
     verify_c_covariance_vector(c_p)
     c_n = get_c_covariance_vector(neg_pcs)
     verify_c_covariance_vector(c_n)
     log_debug("\tClass +ve Bayesian Cov: ", c_p, ", Class -ve Bayesian Cov: ", c_n)
+    write_file_ndarray("(12) cp [{}]".format(POSITIVE_CLASS), c_p)
+    write_file_ndarray("(14) cn [{}]".format(NEGATIVE_CLASS), c_n)
 
     xp_p_pdf = get_bayes_2d_pdf(mu_p, c_p, pos_pcs, xp_pc, "XP{}".format(XP_INDEX))
     xp_n_pdf = get_bayes_2d_pdf(mu_n, c_n, neg_pcs, xp_pc, "XP{}".format(XP_INDEX))
@@ -408,8 +432,12 @@ def get_xi_prob_by_bayes(pos_pcs, neg_pcs, xp_pc, xn_pc):
     xn_prob_bayes = xn_n_pdf / (xn_p_pdf + xn_n_pdf)
     log("\tXP : ", XP_INDEX, ", truth: ", labels[XP_INDEX], ", Prob Histo {}: {}".format(
         POSITIVE_CLASS, xp_prob_bayes))
+    write_file_array("(90) Result of classifying xp using Bayesian: ",
+                     [labels[XP_INDEX], xp_prob_bayes])
     log("\tXN : ", XN_INDEX, ", truth: ", labels[XN_INDEX], ", Prob Histo {}: {}".format(
         NEGATIVE_CLASS, xn_prob_bayes))
+    write_file_array("(94) Result of classifying xn using Bayesian: ",
+                     [labels[XP_INDEX], xn_prob_bayes])
 
 
 def get_xi_prob_from_sk(x_all, xp_index, xn_index):
@@ -436,17 +464,27 @@ def get_training_accuracy_by_histo(hp, hn, mu_vec, v_vec, x_all, x_labels):
         xi_truth = x_labels[xi_index]
         xi_p_n = get_prob_by_histo(hp, hn, x_all[xi_index],
                                    mu_vec, v_vec, "Histo Xi{}".format(xi_index))
-        if xi_p_n[0] > 0.5:
-            xi_pred = [POSITIVE_CLASS]
+
+        if xi_truth == POSITIVE_CLASS:
+            if xi_p_n[0] > xi_p_n[1]:
+                xi_pred = [POSITIVE_CLASS]
+            else:
+                xi_pred = [NEGATIVE_CLASS]
         else:
-            xi_pred = [NEGATIVE_CLASS]
+            if xi_p_n[1] > xi_p_n[0]:
+                xi_pred = [NEGATIVE_CLASS]
+            else:
+                xi_pred = [POSITIVE_CLASS]
 
         if xi_pred == xi_truth:
             num_right_predictions += 1
             log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
         else:
             log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
-    log("Histo Accuracy: ", num_right_predictions / (1.0 * len(x_labels)))
+    histo_accuracy = (num_right_predictions / (1.0 * len(x_labels))) * 100
+    log("Histo Accuracy: ", histo_accuracy, ", TP+TN: ",
+        num_right_predictions, ", Total: ", len(x_labels))
+    write_file_array("(97) Training accuracy attained using histograms: ", [histo_accuracy])
 
 
 def get_training_accuracy_by_bayes(pos_pcs, neg_pcs, p_all, x_labels):
@@ -464,22 +502,75 @@ def get_training_accuracy_by_bayes(pos_pcs, neg_pcs, p_all, x_labels):
         xi_truth = x_labels[xi_index]
         xi_p_pdf = get_bayes_2d_pdf(mu_p, c_p, pos_pcs, xi_pc, "XP{}".format(XP_INDEX))
         xi_n_pdf = get_bayes_2d_pdf(mu_n, c_n, neg_pcs, xi_pc, "XP{}".format(XP_INDEX))
-        xi_prob_bayes = xi_p_pdf / (xi_p_pdf + xi_n_pdf)
+        xi_p_bayes = xi_p_pdf / (xi_p_pdf + xi_n_pdf)
+        xi_n_bayes = xi_n_pdf / (xi_p_pdf + xi_n_pdf)
 
-        if xi_prob_bayes > 0.5:
-            xi_pred = [POSITIVE_CLASS]
+        if xi_truth == POSITIVE_CLASS:
+            if xi_p_bayes > xi_n_bayes:
+                xi_pred = [POSITIVE_CLASS]
+            else:
+                xi_pred = [NEGATIVE_CLASS]
         else:
-            xi_pred = [NEGATIVE_CLASS]
+            if xi_n_bayes > xi_p_bayes:
+                xi_pred = [NEGATIVE_CLASS]
+            else:
+                xi_pred = [POSITIVE_CLASS]
 
         if xi_pred == xi_truth:
             num_right_predictions += 1
             log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
         else:
             log_debug(xi_index, "\t", xi_pred, "\t", x_labels[xi_index])
-    log("Bayes Accuracy: ", num_right_predictions / (1.0 * len(x_labels)))
+    bayesian_accuracy = (num_right_predictions / (1.0 * len(x_labels))) * 100
+    log("Bayes Accuracy: ", bayesian_accuracy)
+    write_file_array("(98) Training accuracy attained using Bayesian: ", [bayesian_accuracy])
 
 
+def open_out_file():
+    global OUT_CSV_FD
+    global OUT_STREAM
+    OUT_CSV_FD = open(OUT_CSV_FILE, 'w')
+    OUT_STREAM = csv.writer(OUT_CSV_FD, delimiter=',', quotechar=' ', quoting=csv.QUOTE_MINIMAL,
+                            lineterminator='\n')
+
+
+def close_out_file():
+    global OUT_CSV_FD
+    OUT_CSV_FD.close
+
+
+def write_file_array(l_msg, *args):
+    if OUT_SKIP:
+        return
+    global OUT_STREAM
+    row_title = [l_msg]
+    data = [*args]
+    log_debug(row_title, ": ", data)
+    if len(l_msg) > 0:
+        OUT_STREAM.writerow(row_title)
+    for row in data:
+        if isinstance(row, int) or isinstance(row, np.float64):
+            row = [row]
+        OUT_STREAM.writerow(row)
+
+
+def write_file_ndarray(l_msg, ndarray_arg):
+    assert isinstance(ndarray_arg, np.ndarray)
+    OUT_STREAM.writerow([l_msg])
+    for row_array in ndarray_arg:
+        write_file_array("", row_array)
+
+
+open_out_file()
 [X, MU, Z, C, V, P, labels] = get_pca()
+
+log_debug("Chosen XP Label: ", labels[XP_INDEX])
+log_debug("Chosen XN Label: ", labels[XN_INDEX])
+write_file_array("(2) MU", MU)
+write_file_array("(3) V1", V[0])
+write_file_array("(4) V2", V[1])
+
+
 [pc_1, pc_2, target_class] = get_pc_with_labels(P, labels)
 verify_images_and_plots(X, MU, Z, C, V, P, labels, XP_INDEX)
 verify_images_and_plots(X, MU, Z, C, V, P, labels, XN_INDEX)
@@ -496,6 +587,9 @@ pos_class_pcs = list(zip(pos_class_pc_1, pos_class_pc_2))
 neg_class_pcs = list(zip(neg_class_pc_1, neg_class_pc_2))
 pcs = list(zip(pc_1, pc_2))
 
+write_file_array("(6) Np [{}]".format(POSITIVE_CLASS), len(pos_class_pcs))
+write_file_array("(7) Nn [{}]".format(NEGATIVE_CLASS), len(neg_class_pcs))
+
 min_pc_1 = min(min(pos_class_pc_1), min(neg_class_pc_1))
 max_pc_1 = max(max(pos_class_pc_1), max(neg_class_pc_1))
 min_pc_2 = min(min(pos_class_pc_2), min(neg_class_pc_2))
@@ -503,16 +597,16 @@ max_pc_2 = max(max(pos_class_pc_2), max(neg_class_pc_2))
 
 bin_count = get_optimal_bin_count(min(len(pos_class_pc_1),
                                       len(neg_class_pc_1)))
-print_samples()
-
-log_debug("Chosen XP is Label: ", labels[XP_INDEX])
-log_debug("Chosen XN is Label: ", labels[XN_INDEX])
 
 XP = X[XP_INDEX]
 XN = X[XN_INDEX]
+
 PP = pcs[XP_INDEX]
 PN = pcs[XN_INDEX]
 
+get_xi_prob_by_bayes(pos_class_pcs, neg_class_pcs, PP, PN)
+
+print_histo_samples()
 [HP, HN] = get_xi_prob_by_histo(pos_class_pc_1, pos_class_pc_2,
                                 neg_class_pc_1, neg_class_pc_2,
                                 bin_count, XP, XN)
@@ -520,7 +614,10 @@ PN = pcs[XN_INDEX]
 pp_x = get_pca_xi(XP, MU, Z)
 pn_x = get_pca_xi(XN, MU, Z)
 log_debug("pp_x: ", pp_x, ", PP: ", PP)
-get_xi_prob_by_bayes(pos_class_pcs, neg_class_pcs, PP, PN)
+
+write_file_array("(80) Xn: ", XN)
+write_file_array("(88) Xp [{}] index {}".format(POSITIVE_CLASS, XP_INDEX), XP)
+write_file_array("(92) Xn [{}] index {}".format(NEGATIVE_CLASS, XN_INDEX), XN)
 
 draw_scatter_plot(P[:, 0], P[:, 1], PP, PN, labels)
 
@@ -528,3 +625,4 @@ get_xi_prob_from_sk(X, XP_INDEX, XN_INDEX)
 
 get_training_accuracy_by_histo(HP, HN, MU, V, X, labels)
 get_training_accuracy_by_bayes(pos_class_pcs, neg_class_pcs, P, labels)
+close_out_file()

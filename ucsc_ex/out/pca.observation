@@ -1,0 +1,13 @@
+
+For the positive class, xp [4] and negative class, xn [3], Principal components (PC) {N x d} are computed from their re-centred features Z {N x d} and EigenVectors V {d x d} transpose. PC1 (PC[:,0]) and PC2 (PC[:,1]) captured the maximum feature set details and the chosen classes xp and xn are found to be distinct enough that when they are plotted using scatter plots formed two distict dot clouds with very less overlapping. This might not be true for all classes.
+
+The reconstructed Z' vector from {PC1,PC2} and V closely ressembled original re-centred feature set Z.
+Upon adding with feature set MU, the recovered X' closely ressembled the original feauture set X.
+Repeating this exercise with more PC featuress improved the ressemblences of original Z and X.
+X reconstructions are visually verified by plotting the original and reconstructed Xi, side by side.
+Once X is reduced from 784 dimensions to 2 most prominent PC dimensions, linear histogram and bayesian classifiers are built using these bivariate features easily.
+
+For the histogram classifier, a 2 dimensional 
+
+
+
