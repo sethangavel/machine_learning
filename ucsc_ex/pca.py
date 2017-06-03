@@ -21,7 +21,7 @@ DEBUG_LOG = False
 OUT_CSV_FILE = "out/pca_2.csv"
 OUT_CSV_FD = None
 OUT_STREAM = None
-OUT_SKIP = True
+OUT_SKIP = False
 
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)
@@ -236,7 +236,7 @@ def get_pca_xi(xi, mu, zz):
     write_file_array("(75) zp: ", z)
     write_file_array("(76) pp: ", p_xi[0:2])
 
-    r_xi = np.dot(p_xi, v)
+    r_xi = np.dot(p_xi[0:2], v[0:2])
     xrec_xi = r_xi + mu
     write_file_array("(77) rp: ", r_xi)
     write_file_array("(78) xrecp: ", xrec_xi)
@@ -295,7 +295,7 @@ def get_optimal_bin_count_custom(min_samples):
 
 
 def get_bin(xi, xmin, xmax):
-    return int(np.around((bin_count - 1) * ((xi - xmin) / (xmax - xmin))))
+    return int(round((bin_count - 1) * ((xi - xmin) / (xmax - xmin))))
 
 
 def get_histo_matrix_row_col(h, s):
@@ -613,7 +613,7 @@ print_histo_samples()
 
 pp_x = get_pca_xi(XP, MU, Z)
 pn_x = get_pca_xi(XN, MU, Z)
-log_debug("pp_x: ", pp_x, ", PP: ", PP)
+# log_debug("pp_x: ", pp_x, ", PP: ", PP)
 
 write_file_array("(80) Xn: ", XN)
 write_file_array("(88) Xp [{}] index {}".format(POSITIVE_CLASS, XP_INDEX), XP)
