@@ -1,8 +1,6 @@
 import xlrd
-import csv
 import numpy as np
 import numpy.linalg as lalg
-from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
 
 WORKBOOK = xlrd.open_workbook('data/6/Car_Data.xlsx')
@@ -15,10 +13,7 @@ NUM_TARGET_COLS = 1
 NUM_FAKE_COL_W0 = 1
 COL_IDX_TARGET_RECOMMENDATION = 6
 NUM_COLS = TOTAL_COLS - NUM_TARGET_COLS
-
 DEBUG_LOG = True
-# np.set_printoptions(precision=4)
-# np.set_printoptions(suppress=True)
 
 
 def log_debug(*args):
@@ -30,22 +25,21 @@ def log(*args):
     print(*args)
 
 
-def get_feature_vector(sheet, total_rows, num_rows, num_cols, num_hdr_row):
+def read_feature_vector_impl(sheet, num_rows, num_cols, num_hdr_row):
     log_debug("\nReading Features")
     log_debug("\tNum Feature Rows: {}".format(num_rows))
     log_debug("\tNum Feature Cols: {}".format(num_cols))
-    price = sheet.col_values(0, NUM_HDR_ROW)
-    maintenance = sheet.col_values(1, NUM_HDR_ROW)
-    doors = sheet.col_values(2, NUM_HDR_ROW)
-    persons = sheet.col_values(3, NUM_HDR_ROW)
-    trunk = sheet.col_values(4, NUM_HDR_ROW)
-    safety = sheet.col_values(5, NUM_HDR_ROW)
+    price = sheet.col_values(0, num_hdr_row)
+    maintenance = sheet.col_values(1, num_hdr_row)
+    doors = sheet.col_values(2, num_hdr_row)
+    persons = sheet.col_values(3, num_hdr_row)
+    trunk = sheet.col_values(4, num_hdr_row)
+    safety = sheet.col_values(5, num_hdr_row)
     return price, maintenance, doors, persons, trunk, safety
 
 
 def read_training_feature_vector():
-    return get_feature_vector(WORKSHEET, TOTAL_ROWS,
-                              NUM_ROWS, NUM_COLS, NUM_HDR_ROW)
+    return read_feature_vector_impl(WORKSHEET, NUM_ROWS, NUM_COLS, NUM_HDR_ROW)
 
 
 def read_target_recommendation_vector():
@@ -57,7 +51,7 @@ def read_target_recommendation_vector():
     return recommendation
 
 
-def convert_nominal_to_kesler_target(feature_vec_x):
+def convert_target_nominal_to_kesler(feature_vec_x):
     keslerized_feature_vec = list()
     feature_vec = [str(x) for x in feature_vec_x]
     unique_value_set = list(sorted(set(feature_vec)))
@@ -71,7 +65,7 @@ def convert_nominal_to_kesler_target(feature_vec_x):
     return np.asarray(keslerized_feature_vec)
 
 
-def convert_nominal_to_kesler_b(feature_vec_x):
+def convert_feature_nominal_to_kesler(feature_vec_x):
     keslerized_feature_vec = list()
     feature_vec = [str(x) for x in feature_vec_x]
     unique_value_set = list(sorted(set(feature_vec)))
@@ -85,38 +79,22 @@ def convert_nominal_to_kesler_b(feature_vec_x):
     return keslerized_feature_vec
 
 
-"""
-def convert_nominal_to_kesler(feature_vec):
-    keslerized_feature_vec = list()
-    unique_values = np.unique(feature_vec)
-    unique_value_map = {}
-    for unique_val_idx in range(0, len(unique_values)):
-        unique_value_map[str(unique_values[unique_val_idx])] = unique_val_idx
-    for idx in range(0, len(feature_vec)):
-        row_kesler = np.zeros(shape=(len(unique_values)), dtype=int)
-        feature_value_kesler_idx = unique_value_map[str(feature_vec[idx])]
-        row_kesler[feature_value_kesler_idx] = 1
-        keslerized_feature_vec.append(row_kesler)
-    # log_debug("\n", keslerized_feature_vec)
-    return keslerized_feature_vec
-"""
-
-
-def get_augmented_keslerized_features(price, maintenance, doors, persons, trunk, safety):
-    price_kesler = convert_nominal_to_kesler_b(price)
-    maint_kesler = convert_nominal_to_kesler_b(maintenance)
-    doors_kesler = convert_nominal_to_kesler_b(doors)
-    persons_kesler = convert_nominal_to_kesler_b(persons)
-    trunk_kesler = convert_nominal_to_kesler_b(trunk)
-    safety_kesler = convert_nominal_to_kesler_b(safety)
+def get_augmented_features_keslerized(price, maintenance, doors, persons,
+                                      trunk, safety):
+    price_kesler = convert_feature_nominal_to_kesler(price)
+    maint_kesler = convert_feature_nominal_to_kesler(maintenance)
+    doors_kesler = convert_feature_nominal_to_kesler(doors)
+    persons_kesler = convert_feature_nominal_to_kesler(persons)
+    trunk_kesler = convert_feature_nominal_to_kesler(trunk)
+    safety_kesler = convert_feature_nominal_to_kesler(safety)
     return np.hstack((np.full(shape=(len(price), 1),
                               fill_value=1), price_kesler, maint_kesler,
                       doors_kesler, persons_kesler, trunk_kesler,
                       safety_kesler))
 
 
-def get_keslerized_target(all_targets_raw):
-    return convert_nominal_to_kesler_target(all_targets_raw)
+def convert_target_multi_class_to_kesler(all_targets_raw):
+    return convert_target_nominal_to_kesler(all_targets_raw)
 
 
 def compute_weight_vector(xa, target):
@@ -127,7 +105,7 @@ def compute_weight_vector(xa, target):
     return w
 
 
-def get_targets_keslerized(xa_vector, training_w):
+def get_targets_multi_class_keslerized(xa_vector, training_w):
     test_targets = np.zeros(shape=(len(xa_vector), training_w.shape[1]),
                             dtype=np.int)
     for xa_i_idx in range(0, len(xa_vector)):
@@ -143,7 +121,7 @@ def get_targets_keslerized(xa_vector, training_w):
     return test_targets
 
 
-def convert_target_kesler_to_nominals(target_raw, target_kesler):
+def convert_target_multi_class_kesler_to_nominals(target_raw, target_kesler):
     target_raw_str = [str(x) for x in target_raw]
     unique_target_set = list(sorted(set(target_raw_str)))
     assert isinstance(target_kesler, np.ndarray)
@@ -152,15 +130,31 @@ def convert_target_kesler_to_nominals(target_raw, target_kesler):
     return np.asarray(targets)
 
 
-def convert_targets_to_binary(targets_raw):
-    return ["unacc" if val == "unacc" else "acc" for val in targets_raw]
+def convert_targets_multi_class_to_binary(targets_raw):
+    targets = list()
+    for val in targets_raw:
+        if val == "unacc":
+            targets.append("unacc")
+        else:
+            targets.append("acc")
+    return targets
 
 
-def get_keslerized_target_binary(targets_binary):
+def convert_target_binary_to_kesler(targets_binary):
     return [-1 if val == "unacc" else 1 for val in targets_binary]
 
 
-def get_targets_2d(xa_vector, training_w2d):
+def convert_target_binary_kesler_to_nominals(targets_binary_predicted_keslerized):
+    targets = list()
+    for val in targets_binary_predicted_keslerized:
+        if val == -1:
+            targets.append("unacc")
+        else:
+            targets.append("acc")
+    return targets
+
+
+def get_targets_binary(xa_vector, training_w2d):
     test_targets = [(1 if (np.dot(xa_i, training_w2d) > 0) else -1) for xa_i in xa_vector]
     test_targets_2d = np.asarray(test_targets)
     log_debug("\nTargets2d Predicted: ", test_targets_2d.shape)
@@ -170,31 +164,37 @@ def get_targets_2d(xa_vector, training_w2d):
 def main_task():
     price, maintenance, doors, persons, trunk, safety = \
         read_training_feature_vector()
-    features_keslerized = get_augmented_keslerized_features(price,
-                                                            maintenance, doors, persons, trunk, safety)
+    features_keslerized = get_augmented_features_keslerized(
+        price, maintenance, doors, persons, trunk, safety)
     log_debug("Features:")
     log_debug("\t X shape: ", features_keslerized.shape)
     n = len(features_keslerized)
     log_debug(features_keslerized[0])
     log_debug(features_keslerized[n - 1])
 
-    targets_raw = read_target_recommendation_vector()
-    targets_keslerized = get_keslerized_target(targets_raw)
+    targets_multi_class_raw = read_target_recommendation_vector()
+    targets_multi_class_keslerized = convert_target_multi_class_to_kesler(
+        targets_multi_class_raw)
     log_debug("Target: ")
-    log_debug("\t T [0]: ", targets_keslerized[0])
-    log_debug("\t T [N]: ", targets_keslerized[len(targets_keslerized) - 1])
+    log_debug("\t T [0]: ", targets_multi_class_keslerized[0])
+    log_debug("\t T [N]: ", targets_multi_class_keslerized[len(
+                  targets_multi_class_keslerized) - 1])
 
-    weights = compute_weight_vector(features_keslerized, targets_keslerized)
-    targets_predicted_keslerized = get_targets_keslerized(
-        features_keslerized, weights)
-    targets_predicted = convert_target_kesler_to_nominals(
-        targets_raw, targets_predicted_keslerized)
-    cm = confusion_matrix(targets_raw, targets_predicted)
+    weights_multi_class = compute_weight_vector(features_keslerized,
+                                                targets_multi_class_keslerized)
+    targets_multi_class_predicted_keslerized = get_targets_multi_class_keslerized(
+        features_keslerized, weights_multi_class)
+    targets_multi_class_predicted =\
+        convert_target_multi_class_kesler_to_nominals(targets_multi_class_raw,
+                                                      targets_multi_class_predicted_keslerized)
+    cm = confusion_matrix(targets_multi_class_raw, targets_multi_class_predicted)
     log_debug("\nConfusion Matrix: ")
     log_debug("\t", cm)
 
-    targets_binary = convert_targets_to_binary(targets_raw)
-    targets_binary_keslerized = get_keslerized_target_binary(targets_binary)
+    targets_binary = convert_targets_multi_class_to_binary(
+        targets_multi_class_raw)
+    targets_binary_keslerized = convert_target_binary_to_kesler(
+        targets_binary)
     log_debug("\nTarget binary: ")
     log_debug("\t T [0]: ", targets_binary_keslerized[0])
     log_debug("\t T [N]: ", targets_binary_keslerized[len(
@@ -202,16 +202,20 @@ def main_task():
 
     weights_binary = compute_weight_vector(features_keslerized,
                                            targets_binary_keslerized)
-    targets_binary_predicted_keslerized = get_targets_2d(
+    targets_binary_predicted_keslerized = get_targets_binary(
         features_keslerized, weights_binary)
-    log_debug("1: ", len(targets_binary_predicted_keslerized[
+    log_debug("Predicted Accetped Kesler: ", len(targets_binary_predicted_keslerized[
                   targets_binary_predicted_keslerized == 1]))
-    targets_binary_predicted = convert_target_kesler_to_nominals(
-        targets_binary, targets_binary_predicted_keslerized)
+    log_debug("Predicted UnAccetped Kesler: ", len(targets_binary_predicted_keslerized[
+                                                     targets_binary_predicted_keslerized == -1]))
+    targets_binary_predicted = convert_target_binary_kesler_to_nominals(
+        targets_binary_predicted_keslerized)
 
-    cm = confusion_matrix(targets_binary_keslerized, targets_binary_predicted_keslerized)
+    cm_sk_1 = confusion_matrix(targets_binary, targets_binary_predicted, labels=("unacc", "acc"))
+    cm_sk_2 = confusion_matrix(targets_binary_keslerized, targets_binary_predicted_keslerized)
     log_debug("\nConfusion Matrix: ")
-    log_debug("\t", cm)
+    log_debug("\tcm by nominals:", cm_sk_1)
+    log_debug("\tcm by kesler:", cm_sk_2)
 
 
 main_task()
