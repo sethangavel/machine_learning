@@ -1,0 +1,19 @@
+
+1. Stump algorithm:
+Impurity Improvement \Delta Δ: 0.09490923990488173
+Optimal Threshold \tau τ: 68.0 
+
+2. Linear classifier:
+Pseudoinverse method: w0: -9.90505892  w1: 0.14566241
+
+3.
+For the given 1D feature Height X, from the weights calculated via pseudoinverse method, the linear classification separating line equation can be solved to get the separating height.
+                    w0 + w1x = 0
+-9.90505892 + 0.14566241 * x = 0
+                           x = 9.90505892 / 0.14566241
+                           x = 68.00010325
+
+The separating height thus calculated via linear classifier matches almost exactly with the optimal threshold \tau τ = 68.0 calculated via stump algorithm.
+
+
+

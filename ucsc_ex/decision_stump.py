@@ -58,7 +58,9 @@ def get_impurity_improvement_and_optimal_split(x_nd, x_all, t_all):
             tow = x_all[idx]
             tow_idx = idx
 
-    log_debug("I: ", impurity_initial - impurity_optimal)
+    log_debug("Io: ", impurity_initial)
+    log_debug("Iopt: ", impurity_optimal)
+    log_debug("I delta: ", impurity_initial - impurity_optimal)
     log_debug("Tow: ", tow, ", (i={})".format(tow_idx), x_nd[tow_idx])
 
 
