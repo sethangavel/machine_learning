@@ -1,7 +1,7 @@
 import globals
 import numpy as np
 import numpy.linalg as lalg
-from commons import DNode, log_debug
+from commons import DNode, log_debug, log
 from config import *
 
 
@@ -113,9 +113,9 @@ def get_delta_and_tow(x_t_all, level=0):
     prevalence_negative, prevalence_positive = get_prevalence(x_t_all[:, 2])
     prevalence = prevalence_negative * prevalence_positive
 
-    log_debug("Tree max height so far: ", globals.tree_height)
+    log("Tree max height so far: ", globals.tree_height)
     if prevalence < LIMIT_LEAF_NODE_PREVALENCE or x_t_len < LIMIT_LEAF_NODE_SUBSET_SIZE:
-        log_debug("X very pure. Bailing out!")
+        log_debug("X very pure. Bailing out: subset len: {}, prevalence: {}", x_t_len, prevalence)
         return get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive)
 
     delta_array, tau_array = get_delta_and_tow_impl(x_t_all)
@@ -144,6 +144,24 @@ def get_delta_and_tow(x_t_all, level=0):
         node = get_leaf_node(x_t_all_new[:, 2])
 
     return node
+
+
+def build_tree(x_t_all):
+    return get_delta_and_tow(x_t_all)
+
+
+def evaluate_tree(xi, root_node):
+
+    if root_node.is_leaf():
+        return root_node.target
+
+    decision_feature_idx = root_node.feature_index
+    decision_feature_tau = root_node.tau
+    if xi[decision_feature_idx] < decision_feature_tau:
+        return evaluate_tree(xi, root_node.left)
+    else:
+        return evaluate_tree(xi, root_node.right)
+
 
 
 

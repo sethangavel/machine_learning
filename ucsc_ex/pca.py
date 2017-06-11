@@ -10,18 +10,18 @@ from numpy import *
 import numpy.linalg as la
 from sklearn.decomposition import PCA as sk_pca
 
-POSITIVE_CLASS = 4
-NEGATIVE_CLASS = 3
+NEGATIVE_CLASS = 7
+POSITIVE_CLASS = 9
 XP_INDEX = 1302
 XN_INDEX = 250
 SCATTER_PLOT_ALPHA = 0.4
 ENABLE_IMAGE_SHOW = False
 FORCE_EIGEN_FLIP = True
 DEBUG_LOG = False
-OUT_CSV_FILE = "out/pca_2.csv"
+OUT_CSV_FILE = "out/pca_3.csv"
 OUT_CSV_FD = None
 OUT_STREAM = None
-OUT_SKIP = False
+OUT_SKIP = True
 
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)

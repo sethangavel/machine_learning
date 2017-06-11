@@ -14,6 +14,9 @@ class DNode:
             self.type = "LEAF"
             self.target = kwargs['target']
 
+    def is_leaf(self):
+        return self.type == "LEAF"
+
     def visit(self, stats_dict, indent_level):
         if self.type == "LEAF":
             log_debug("{} [LEAF]: {}".format(" " * indent_level, self.target))
@@ -22,12 +25,12 @@ class DNode:
             log_debug("{} [RULE]: X{} / {}".format(" " * indent_level, self.feature_index, self.tau))
 
 
-def traverse_node(node, stats_dict, indent_level=0):
+def traverse_tree(node, stats_dict, indent_level=0):
     if node is None:
         return
     node.visit(stats_dict, indent_level)
-    traverse_node(node.left, stats_dict, indent_level + 1)
-    traverse_node(node.right, stats_dict, indent_level + 1)
+    traverse_tree(node.left, stats_dict, indent_level + 1)
+    traverse_tree(node.right, stats_dict, indent_level + 1)
 
 
 def log_debug(*args):
