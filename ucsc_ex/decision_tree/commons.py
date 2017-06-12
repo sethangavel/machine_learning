@@ -21,9 +21,15 @@ class DNode:
     def visit(self, stats_dict, indent_level):
         if self.type == "LEAF":
             log_debug("{} [LEAF]: {}".format(" " * indent_level, self.target))
-            stats_dict['T{}'.format(self.target)] += 1
+            if 'T{}'.format(self.target) in stats_dict:
+                stats_dict['T{}'.format(self.target)] += 1
+            else:
+                stats_dict['T{}'.format(self.target)] = 1
         else:
-            stats_dict['F{}'.format(self.feature_index)] += 1
+            if 'F{}'.format(self.feature_index) in stats_dict:
+                stats_dict['F{}'.format(self.feature_index)] += 1
+            else:
+                stats_dict['F{}'.format(self.feature_index)] = 1
             log_debug("{} [RULE]: X{} / {}".format(" " * indent_level, self.feature_index, self.tau))
 
 

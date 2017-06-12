@@ -7,31 +7,15 @@ import numpy as np
 
 
 def main_task():
-    x1, x2, x3, labels = get_prinicipal_features_and_labels()
-    if ENABLE_PLOT:
-        draw_scatter_plot(x1, x2, (0, 0), (0, 1), labels)
-    x1 = np.array([x1]).transpose()
-    x2 = np.array([x2]).transpose()
-    x3 = np.array([x3]).transpose()
-
-    log_debug("X1: ", x1.shape)
-    log_debug("X2: ", x2.shape)
-    log_debug("X3: ", x3.shape)
-    log_debug("T: ", labels.shape)
+    xi, labels = get_prinicipal_features_and_labels()
 
     labels[labels == NEGATIVE_CLASS] = NEGATIVE_CLASS_MAPPED
     labels[labels == POSITIVE_CLASS] = POSITIVE_CLASS_MAPPED
-    x_nd = np.column_stack((x1, x2, x3, labels))
+    x_nd = np.column_stack((xi, labels))
 
     root_node = build_tree(x_nd)
 
-    stats_dict = {
-        'T{}'.format(NEGATIVE_CLASS_MAPPED): 0,
-        'T{}'.format(POSITIVE_CLASS_MAPPED): 0,
-        'F0': 0,
-        'F1': 0,
-        'F2': 0,
-    }
+    stats_dict = {}
     traverse_tree(root_node, stats_dict)
     log(stats_dict)
 
