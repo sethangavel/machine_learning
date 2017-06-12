@@ -1,4 +1,5 @@
 from config import *
+import random
 
 
 class DNode:
@@ -20,8 +21,9 @@ class DNode:
     def visit(self, stats_dict, indent_level):
         if self.type == "LEAF":
             log_debug("{} [LEAF]: {}".format(" " * indent_level, self.target))
-            stats_dict['{}'.format(self.target)] += 1
+            stats_dict['T{}'.format(self.target)] += 1
         else:
+            stats_dict['F{}'.format(self.feature_index)] += 1
             log_debug("{} [RULE]: X{} / {}".format(" " * indent_level, self.feature_index, self.tau))
 
 

@@ -544,5 +544,5 @@ def write_file_ndarray(l_msg, ndarray_arg):
 
 def get_prinicipal_features_and_labels():
     x_, mu_, z_, c_, v_, p_, labels_ = get_pca()
-    return p_[:, 0], p_[:, 1], labels_
+    return p_[:, NUM_FEATURES], labels_
 

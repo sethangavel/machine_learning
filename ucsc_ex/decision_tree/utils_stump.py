@@ -8,13 +8,13 @@ from config import *
 def get_feature_impurity_and_tau(x, t):
     x_nd_raw = np.column_stack(zip(x, t)).transpose()
     x_nd = x_nd_raw[x_nd_raw[:, 0].argsort(kind='mergesort')]
-    # log_debug(x_nd)
+    t = x_nd[:, 1]
 
-    x_count = len(x_nd)
+    x_count = np.alen(x_nd)
     x_negative = [x_nd[x, 0] for x in range(0, x_count) if x_nd[x, 1] == NEGATIVE_CLASS_MAPPED]
-    t_negative = len(x_negative)
+    t_negative = np.alen(x_negative)
     x_positive = [x_nd[x, 0] for x in range(0, x_count) if x_nd[x, 1] == POSITIVE_CLASS_MAPPED]
-    t_positive = len(x_positive)
+    t_positive = np.alen(x_positive)
     log_debug(x_count, t_negative, t_positive)
 
     a_negative = 0
@@ -32,7 +32,7 @@ def get_feature_impurity_and_tau(x, t):
         impurity_part2_1 = ((a_negative * a_positive) / (a_negative + a_positive))
         impurity_part2_2 = ((t_negative - a_negative) * (t_positive - a_positive)) / (
             t_negative + t_positive - a_negative - a_positive)
-        impurity_tmp = (1 / x_count) * (impurity_part2_1 + impurity_part2_2)
+        impurity_tmp = (1.0 / x_count) * (impurity_part2_1 + impurity_part2_2)
         if impurity_tmp < impurity_optimal:
             impurity_optimal = impurity_tmp
             tow = x[idx]
@@ -40,31 +40,30 @@ def get_feature_impurity_and_tau(x, t):
 
     delta = impurity_initial - impurity_optimal
     tau = x[tow_idx]
-    log_debug("Io: ", impurity_initial)
-    log_debug("Iopt: ", impurity_optimal)
-    log_debug("I delta: ", delta)
-    log_debug("Tow: ", tow, ", (i={})".format(tow_idx), tau)
+    log("Io: ", impurity_initial)
+    log("Iopt: ", impurity_optimal)
+    log("I delta: ", delta)
+    log("Tow: ", tow, ", (i={})".format(tow_idx), tau)
     return delta, tau
 
 
 def get_delta_and_tow_impl(x_t_all):
     assert isinstance(x_t_all, np.ndarray)
-    x_t_all_dimension = x_t_all.shape
-    # log_debug("x_t_all shape: ", x_t_all.shape)
-    target_idx = x_t_all_dimension[1] - 1
-    num_features = x_t_all_dimension[1] - 1
+    assert x_t_all.shape[1] == NUM_FEATURES + 1
+
+    num_features = NUM_FEATURES
+    target_idx = NUM_FEATURES
+
     delta_array = np.zeros(num_features)
     tau_array = np.zeros(num_features)
+    target = x_t_all[:, target_idx]
     for feature_idx in range(0, num_features):
         feature = x_t_all[:, feature_idx]
-        # log_debug("F: ", feature)
-        target = x_t_all[:, target_idx]
         delta, tau = get_feature_impurity_and_tau(feature, target)
         delta_array[feature_idx] = delta
         tau_array[feature_idx] = tau
         log_debug("\n")
-    # log_debug("\nD:", delta_array)
-    # log_debug("\nTau:", tau_array)
+    assert np.min(delta_array) > 0
     return delta_array, tau_array
 
 
@@ -101,53 +100,59 @@ def get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive):
 
 def get_leaf_node(target):
     prevalence_negative, prevalence_positive = get_prevalence(target)
+    assert prevalence_negative * prevalence_positive < LIMIT_LEAF_NODE_PREVALENCE
     return get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive)
 
 
-def get_delta_and_tow(x_t_all, level=0):
+def build_tree_recursive(x_t_all, level=0):
     x_t_len = np.alen(x_t_all)
     assert np.alen(x_t_all > 0)
     if globals.tree_height < level:
         globals.tree_height = level
 
-    prevalence_negative, prevalence_positive = get_prevalence(x_t_all[:, 2])
+    index_target = NUM_FEATURES
+    prevalence_negative, prevalence_positive = get_prevalence(x_t_all[:, index_target])
     prevalence = prevalence_negative * prevalence_positive
 
-    log("Tree max height so far: ", globals.tree_height)
+    log_debug("Tree max height so far: ", globals.tree_height)
+    log("X very pure? : subset len: {}, prevalence: {}", x_t_len, prevalence)
     if prevalence < LIMIT_LEAF_NODE_PREVALENCE or x_t_len < LIMIT_LEAF_NODE_SUBSET_SIZE:
-        log_debug("X very pure. Bailing out: subset len: {}, prevalence: {}", x_t_len, prevalence)
+        log("X very pure. Bailing out: subset len: {}, prevalence: {}", x_t_len, prevalence)
         return get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive)
 
     delta_array, tau_array = get_delta_and_tow_impl(x_t_all)
     delta_max_idx = np.argmax(delta_array)
     tau = tau_array[delta_max_idx]
+    log_debug("delta_array: ", delta_array, ", delta_max_idx: ", delta_max_idx, ", tau: ", tau_array)
 
-    x_t_all_new = x_t_all[x_t_all[:, delta_max_idx].argsort(kind='mergesort')]
-    x_delta = x_t_all_new[:, delta_max_idx]
-    tau_idx = np.where(x_delta == tau)[0][0]
+    x_t_all_sorted_delta_max = x_t_all[x_t_all[:, delta_max_idx].argsort(kind='mergesort')]
+    x_delta_max = x_t_all_sorted_delta_max[:, delta_max_idx]
+    log("Tau, idx: ", tau, np.where(x_delta_max == tau), ", x_sorted: ", x_delta_max)
+    tau_idx = np.where(x_delta_max == tau)[0][0]
+    assert (tau_idx >= 0) and (tau_idx <= np.alen(x_t_all_sorted_delta_max))
     # log_debug("\n level: ", level, ", tau_idx: ", tau_idx)
 
-    x_t_all_left = x_t_all_new[0:tau_idx - 1, :]
-    x_t_all_right = x_t_all_new[tau_idx:, :]
+    x_t_all_left = x_t_all_sorted_delta_max[0:tau_idx, :]
+    x_t_all_right = x_t_all_sorted_delta_max[tau_idx:, :]
     if np.alen(x_t_all_left) > 0 and np.alen(x_t_all_right) > 0:
         node = DNode("RULE", feature_idx=delta_max_idx, tau=tau)
 
-        assert (tau_idx - 1 > 0)
+        assert (tau_idx > 0)
         # log_debug("\n level:", level, ", x_left: ", x_t_all_left.shape[0])
-        node.left = get_delta_and_tow(x_t_all_left, level + 1)
+        node.left = build_tree_recursive(x_t_all_left, level + 1)
 
-        assert(np.alen(x_t_all_new) - tau_idx > 0)
+        assert(np.alen(x_t_all_sorted_delta_max) - tau_idx > 0)
         # log_debug("\n level: ", level, ", x_right: ", x_t_all_right.shape[0])
-        node.right = get_delta_and_tow(x_t_all_right, level + 1)
+        node.right = build_tree_recursive(x_t_all_right, level + 1)
     else:
         assert np.alen(x_t_all_left) == 0 or np.alen(x_t_all_right) == 0
-        node = get_leaf_node(x_t_all_new[:, 2])
+        node = get_leaf_node(x_t_all_sorted_delta_max[:, 2])
 
     return node
 
 
 def build_tree(x_t_all):
-    return get_delta_and_tow(x_t_all)
+    return build_tree_recursive(x_t_all)
 
 
 def evaluate_tree(xi, root_node):
