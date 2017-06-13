@@ -90,7 +90,7 @@ def draw_scatter_plot(cloud_a, cloud_b, xp, xn, all_labels):
     ax.legend(loc='lower left', numpoints=1, ncol=3, fontsize=10, bbox_to_anchor=(0, 0))
     ax.set_aspect('equal')
     plt.rcParams['axes.facecolor'] = 'b'
-    plt.gca().invert_yaxis()
+    # plt.gca().invert_yaxis()
     plt.title('Principal Components PC1 and PC2 scatter plot\nManoj Govindassamy')
     plt.show()
 

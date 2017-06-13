@@ -3,6 +3,7 @@ import numpy as np
 import numpy.linalg as lalg
 from commons import DNode, log_debug, log
 from config import *
+import matplotlib.pyplot as plt
 
 
 def get_feature_impurity_and_tau(x, t):
@@ -40,10 +41,10 @@ def get_feature_impurity_and_tau(x, t):
 
     delta = impurity_initial - impurity_optimal
     tau = x[tow_idx]
-    log("Io: ", impurity_initial)
-    log("Iopt: ", impurity_optimal)
-    log("I delta: ", delta)
-    log("Tow: ", tow, ", (i={})".format(tow_idx), tau)
+    log_debug("Io: ", impurity_initial)
+    log_debug("Iopt: ", impurity_optimal)
+    log_debug("I delta: ", delta)
+    log_debug("Tow: ", tow, ", (i={})".format(tow_idx), tau)
     return delta, tau
 
 
@@ -100,7 +101,7 @@ def get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive):
 
 def get_leaf_node(target):
     prevalence_negative, prevalence_positive = get_prevalence(target)
-    assert prevalence_negative * prevalence_positive < LIMIT_LEAF_NODE_PREVALENCE
+    # assert prevalence_negative * prevalence_positive < LIMIT_LEAF_NODE_PREVALENCE
     return get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive)
 
 
@@ -117,7 +118,7 @@ def build_tree_recursive(x_t_all, level=0):
     log_debug("Tree max height so far: ", globals.tree_height)
     log("X very pure? : subset len: {}, prevalence: {}", x_t_len, prevalence)
     if prevalence < LIMIT_LEAF_NODE_PREVALENCE or x_t_len < LIMIT_LEAF_NODE_SUBSET_SIZE:
-        log("X very pure. Bailing out: subset len: {}, prevalence: {}", x_t_len, prevalence)
+        log_debug("X very pure. Bailing out: subset len: {}, prevalence: {}", x_t_len, prevalence)
         return get_leaf_node_by_prevalence(prevalence_negative, prevalence_positive)
 
     delta_array, tau_array = get_delta_and_tow_impl(x_t_all)
@@ -127,7 +128,7 @@ def build_tree_recursive(x_t_all, level=0):
 
     x_t_all_sorted_delta_max = x_t_all[x_t_all[:, delta_max_idx].argsort(kind='mergesort')]
     x_delta_max = x_t_all_sorted_delta_max[:, delta_max_idx]
-    log("Tau, idx: ", tau, np.where(x_delta_max == tau), ", x_sorted: ", x_delta_max)
+    log_debug("Tau, idx: ", tau, np.where(x_delta_max == tau), ", x_sorted: ", x_delta_max)
     tau_idx = np.where(x_delta_max == tau)[0][0]
     assert (tau_idx >= 0) and (tau_idx <= np.alen(x_t_all_sorted_delta_max))
     # log_debug("\n level: ", level, ", tau_idx: ", tau_idx)
@@ -166,6 +167,55 @@ def evaluate_tree(xi, root_node):
         return evaluate_tree(xi, root_node.left)
     else:
         return evaluate_tree(xi, root_node.right)
+
+
+def plot_contours(x_nd, y, root_node):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    X = x_nd[:, [0, 1]]
+
+    fig = plt.figure()
+    cols = np.zeros((np.alen(y), 4))
+    for idx, ll in enumerate(y):
+        if ll == POSITIVE_CLASS_MAPPED:
+            cols[idx] = [1, 0, 0, SCATTER_PLOT_ALPHA]
+        if ll == NEGATIVE_CLASS_MAPPED:
+            cols[idx] = [0, 0.2, 1, SCATTER_PLOT_ALPHA]
+    random_order = np.arange(np.alen(y))
+    ax = fig.add_subplot(111, facecolor='white')
+    ax.set_aspect('equal')
+
+    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, PLOT_STEP),
+                         np.arange(y_min, y_max, PLOT_STEP))
+
+    z = np.zeros(shape=xx.shape)
+    for row in range(0, xx.shape[0]):
+        for col in range(0, xx.shape[1]):
+            z[row][col] = evaluate_tree((xx[row][col], yy[row][col]), root_node)
+
+    z = z.reshape(xx.shape)
+    cs = ax.contourf(yy, xx, z, alpha=DECISION_BOUNDARY_ALPHA, cmap=plt.cm.Paired)
+
+    ax.scatter(x_nd[:, 1], x_nd[:, 0], s=8, linewidths=0,
+               facecolors=cols[random_order, :], marker='o')
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.axis("tight")
+
+    """
+    idx = np.where(y == NEGATIVE_CLASS_MAPPED)
+    plt.scatter(X[idx, 1], X[idx, 0], c='b', cmap=plt.cm.Paired)
+    idx = np.where(y == POSITIVE_CLASS_MAPPED)
+    plt.scatter(X[idx, 1], X[idx, 0], c='r', cmap=plt.cm.Paired)
+    plt.gca().invert_yaxis()
+    """
+
+    plt.rcParams['axes.facecolor'] = 'b'
+    # plt.gca().invert_yaxis()
+    plt.show()
 
 
 
