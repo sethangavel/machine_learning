@@ -25,8 +25,8 @@ def load_mnist(dataset="training", digits=range(10), path='data/3/'):
         fname_img = os.path.join(path, 'train-images-idx3-ubyte')
         fname_lbl = os.path.join(path, 'train-labels-idx1-ubyte')
     elif dataset == "testing":
-        fname_img = os.path.join(path, 't10k-images.idx')
-        fname_lbl = os.path.join(path, 't10k-labels.idx')
+        fname_img = os.path.join(path, 't10k-images-idx3-ubyte')
+        fname_lbl = os.path.join(path, 't10k-labels-idx1-ubyte')
     else:
         raise ValueError("dataset must be 'testing' or 'training'")
 
@@ -225,8 +225,8 @@ def get_pca_xi(xi, mu, zz):
     return p_xi[0:2]
 
 
-def get_pca():
-    images, l_labels = load_mnist('training', digits=[NEGATIVE_CLASS, POSITIVE_CLASS])
+def get_pca(data_type):
+    images, l_labels = load_mnist(data_type, digits=[NEGATIVE_CLASS, POSITIVE_CLASS])
 
     x = get_x_feature_vectors(images)
     mu = get_mu_mean_vectors(x)
@@ -542,7 +542,12 @@ def write_file_ndarray(l_msg, ndarray_arg):
         write_file_array("", row_array)
 
 
-def get_prinicipal_features_and_labels():
-    x_, mu_, z_, c_, v_, p_, labels_ = get_pca()
+def get_training_prinicipal_features_and_labels():
+    x_, mu_, z_, c_, v_, p_, labels_ = get_pca('training')
+    return p_[:, 0:NUM_FEATURES], labels_
+
+
+def get_test_prinicipal_features_and_labels():
+    x_, mu_, z_, c_, v_, p_, labels_ = get_pca('testing')
     return p_[:, 0:NUM_FEATURES], labels_
 

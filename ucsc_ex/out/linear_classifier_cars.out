@@ -1,0 +1,20 @@
+
+1.
+MultiClass linear classifier confusion matrix:
+      272    0  112    0
+       69    0    0    0
+       29    0 1181    0
+       65    0    0    0
+ 
+2. 
+* Yes, it is possible to formulate the above multiclass to binary linear classifier if we just need yes/no targers instead of range of recommendations.
+* The negative class 'unacc' can be mapped to the nagative class -1 in the binary linear classifier.
+* Any shades of positive classes like 'acc', 'good', 'vgood' can be mapped to postive class 1 in the binary linear classifier
+
+3.
+Binary linear classifier confusion matrix:
+      1148    62
+        29   489
+
+
+
