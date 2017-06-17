@@ -29,7 +29,7 @@ def main_task():
     test_target_actual = [0] * np.alen(test_x_nd)
     test_target_predicted = [0] * np.alen(test_x_nd)
     for idx in range(0, np.alen(test_x_nd)):
-        test_target_actual[idx] = x_nd[idx][NUM_FEATURES]
+        test_target_actual[idx] = test_x_nd[idx][NUM_FEATURES]
         test_target_predicted[idx] = evaluate_tree((test_x_nd[idx][:NUM_FEATURES]), root_node)
 
     plot_contours(test_x_nd, test_target_actual, root_node)

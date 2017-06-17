@@ -190,6 +190,8 @@ def plot_contours(x_nd, y, root_node):
     y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
     xx, yy = np.meshgrid(np.arange(x_min, x_max, PLOT_STEP),
                          np.arange(y_min, y_max, PLOT_STEP))
+    print("xx shape: ", xx.shape)
+    print("yy shape: ", yy.shape)
 
     z = np.zeros(shape=xx.shape)
     for row in range(0, xx.shape[0]):
@@ -216,6 +218,7 @@ def plot_contours(x_nd, y, root_node):
     plt.rcParams['axes.facecolor'] = 'b'
     # plt.gca().invert_yaxis()
     plt.show()
+
 
 
 

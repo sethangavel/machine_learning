@@ -49,3 +49,4 @@ def log_debug(*args):
 def log(*args):
     print(*args)
 
+
